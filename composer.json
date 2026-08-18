@@ -1,19 +1,13 @@
 {
   "$schema": "https://getcomposer.org/schema.json",
-  "name": "acme/mago-extension",
-  "description": "A project or framework extension for Mago.",
+  "name": "ilyakabanov/mago-yii2-extension",
+  "description": "Yii2 framework support for the Mago PHP static analyzer.",
   "type": "library",
   "license": "MIT",
-  "authors": [
-    {
-      "name": "Your Name",
-      "email": "you@example.com"
-    }
-  ],
   "keywords": [
     "mago",
-    "static-analysis",
-    "linter"
+    "yii2",
+    "static-analysis"
   ],
   "require": {
     "php": "^8.1",
@@ -24,12 +18,12 @@
   },
   "autoload": {
     "psr-4": {
-      "Acme\\Mago\\": "src/"
+      "Ilyakabanov\\MagoYii2\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Acme\\Mago\\Tests\\": "tests/Unit/"
+      "Ilyakabanov\\MagoYii2\\Tests\\": "tests/Unit/"
     }
   },
   "config": {

@@ -1,92 +1,66 @@
-# Mago Extension Template
+# Mago Yii2 Extension
 
-A small, end-to-end template for building external linter rules and analyzer plugins for [Mago](https://github.com/carthage-software/mago).
+> Experimental: this project is in early development and does not provide Yii2-specific analysis features yet.
 
-The example extension contains:
+A Mago extension intended to add Yii2 framework awareness to the [Mago](https://github.com/carthage-software/mago) PHP static analyzer.
 
-- a linter rule selected by an exact syntax-node kind;
-- a machine-applicable edit based on Mago's resolved names;
-- an analyzer plugin with a targeted method return-type provider;
-- unit tests and a real Mago corpus test using an external worker;
-- formatting, linting, analysis, and CI commands.
+## Status
 
-## Start a new extension
+The repository currently contains the extension and analyzer-plugin scaffolding. Yii2-specific providers, hooks, and rules will be added incrementally.
 
-Create a repository from this template, then replace the example identity before writing new capabilities:
+## Identity
 
-1. Rename `acme/mago-extension` in `composer.json`.
-2. Replace the `Acme\Mago` namespace and PSR-4 mappings.
-3. Rename `AcmeExtension` and update its identifier, name, and version.
-4. Rename the analyzer plugin identifier and every linter issue code.
-5. Replace or remove the example rule, provider, fixtures, and corpus expectations.
-6. Set the package author, description, keywords, and license.
+- Composer package: `ilyakabanov/mago-yii2-extension`
+- PHP namespace: `Ilyakabanov\MagoYii2`
+- Mago extension identifier: `yii2/mago-extension`
+- Analyzer plugin identifier: `yii2/framework`
 
-Keep the package-owned extension factory as the only registration API consumers need. Typed factory arguments may expose intentional options, but consumers should not have to reconstruct rule and plugin lists themselves.
+## Using the extension during development
 
-## Package structure
-
-```text
-src/
-├── AcmeExtension.php
-├── Analyzer/
-│   ├── AcmePlugin.php
-│   └── Providers/
-│       └── ContainerReturnTypeProvider.php
-└── Linter/
-    └── Rules/
-        └── NoLegacyHelperRule.php
-tests/
-├── Unit/
-└── corpus/
-    ├── mago.toml
-    ├── worker.php
-    └── src/
-```
-
-Put lifecycle callbacks under `src/Analyzer/Hooks/`, semantic providers under `src/Analyzer/Providers/`, linter rules under `src/Linter/Rules/`, and worker reducers under `src/Worker/`.
-
-## Install the extension
-
-Applications install Mago and the finished extension together:
+Install dependencies:
 
 ```shell
-composer require --dev carthage-software/mago acme/mago-extension
+composer install
 ```
 
-The application owns its worker entrypoint. Create `.mago/extensions.php`:
+Create a worker entrypoint in the application, for example `.mago/extensions.php`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Acme\Mago\AcmeExtension;
+use Ilyakabanov\MagoYii2\Yii2Extension;
 use Mago\Sdk\Worker;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-new Worker(AcmeExtension::create())->run();
+(new Worker(Yii2Extension::create()))->run();
 ```
 
-Register it in `mago.toml`:
+Register the worker in `mago.toml`:
 
 ```toml
-[extension-hosts.acme]
+[extension-hosts.yii2]
 command = ["php", ".mago/extensions.php"]
 ```
 
-Several extension factories may be passed to the same `Worker`. Standard output is reserved for protocol frames; write development diagnostics to standard error.
+Enable the analyzer plugin when needed:
+
+```toml
+[analyzer]
+plugins = ["yii2/framework"]
+```
 
 ## Development
 
-Install dependencies and run every check:
+Run all project checks with:
 
 ```shell
-composer install
 just check
 ```
 
-Useful focused commands are:
+Useful focused commands:
 
 ```shell
 just format
@@ -96,10 +70,8 @@ just analyze
 just test-corpus
 ```
 
-The corpus starts the real worker and checks inline `@mago-expect` annotations. Keep small fixtures for positive, negative, and non-matching behavior. A larger extension may use Mago's strict baseline files for a representative fixture project.
-
-Read the [Mago extension documentation](https://mago.carthage.software/main/en/extensions/overview/) for the complete SDK, lifecycle, metadata, reporting, performance, and packaging contracts.
+The corpus test starts the real extension worker and verifies that the extension can be registered by Mago. Yii2-specific corpus cases will be added together with their corresponding features.
 
 ## License
 
-The template uses the MIT License. Replace it if the new package uses another license.
+MIT.
