@@ -1,3 +1,4 @@
+#:schema vendor/carthage-software/mago/schema.json
 version = "1"
 php-version = "8.1"
 

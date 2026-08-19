@@ -1,4 +1,7 @@
 /vendor/
 /.mago/
 /.phpunit.cache/
-
+.phpunit.result.cache
+/.idea/
+/composer.lock
+.DS_Store
