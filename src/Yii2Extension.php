@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ilyakabanov\MagoYii2;
 
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
+use Ilyakabanov\MagoYii2\Linter\Rules\PrivatePropertyUnderscoreRule;
 use Mago\Sdk\Extension;
 
 /**
@@ -24,7 +25,9 @@ final class Yii2Extension
             identifier: 'yii2/mago-extension',
             name: 'Mago Yii2 Extension',
             version: self::VERSION,
-            linterRules: [],
+            linterRules: [
+                new PrivatePropertyUnderscoreRule(),
+            ],
             analyzerPlugins: [new Yii2Plugin()],
         );
     }
