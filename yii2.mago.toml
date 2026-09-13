@@ -14,3 +14,16 @@ expand-use-groups = true
 
 [linter.rules]
 array-style = { enabled = true, level = "error", style = "short" }
+block-statement = { enabled = true, level = "error" }
+class-name = { enabled = true, level = "error" }
+constant-name = { enabled = true, level = "error" }
+lowercase-keyword = { enabled = true, level = "error" }
+lowercase-type-hint = { enabled = true, level = "error" }
+method-name = { enabled = true, level = "error", camel = true }
+no-closing-tag = { enabled = true, level = "error" }
+no-short-opening-tag = { enabled = true, level = "error" }
+no-side-effects-with-declarations = { enabled = true, level = "error", exclude = ["tests/**/_bootstrap.php", "web/index.php", "web/index-test.php"] }
+no-trailing-space = { enabled = true, level = "error" }
+optional-param-order = { enabled = true, level = "error" }
+require-namespace = { enabled = true, level = "error", exclude = ["**/m[0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]_*.php"] }
+single-class-per-file = { enabled = true, level = "error" }

@@ -72,6 +72,80 @@ final class ConsumerTest extends TestCase
         self::assertStringContainsString('yii2/private-property-underscore', $output);
     }
 
+    public function testPresetEnablesReadyMagoRules(): void
+    {
+        $this->installPackage();
+
+        $fixtures = [
+            'array-style' => 'ArrayStyle.php',
+            'block-statement' => 'BlockStatement.php',
+            'class-name' => 'ClassName.php',
+            'constant-name' => 'ConstantName.php',
+            'lowercase-keyword' => 'LowercaseKeyword.php',
+            'lowercase-type-hint' => 'LowercaseTypeHint.php',
+            'method-name' => 'MethodName.php',
+            'no-closing-tag' => 'NoClosingTag.php',
+            'no-short-opening-tag' => 'NoShortOpeningTag.php',
+            'no-side-effects-with-declarations' => 'NoSideEffectsWithDeclarations.php',
+            'optional-param-order' => 'OptionalParamOrder.php',
+            'require-namespace' => 'RequireNamespace.php',
+            'single-class-per-file' => 'SingleClassPerFile.php',
+        ];
+        $rules = [...array_keys($fixtures), 'no-trailing-space'];
+
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'config',
+            '--show',
+            'linter',
+        ]);
+        /** @var array{rules: array<string, array{enabled: bool, level: string}>} $config */
+        $config = json_decode($output, associative: true, flags: JSON_THROW_ON_ERROR);
+        foreach ($rules as $rule) {
+            self::assertTrue($config['rules'][$rule]['enabled'] ?? false, $rule);
+            self::assertSame('Error', $config['rules'][$rule]['level'] ?? null, $rule);
+        }
+
+        $invalidPaths = [];
+        foreach ($fixtures as $fixture) {
+            $path = 'src/' . $fixture;
+            $this->copyIntegrationFixture('Linter/' . $fixture, $path);
+            $invalidPaths[] = $path;
+        }
+        $trailingSpacePath = 'src/NoTrailingSpace.php';
+        file_put_contents(
+            filename: $this->workspace . '/' . $trailingSpacePath,
+            data: "<?php\n\n// Trailing space.\x20\n",
+        );
+        $invalidPaths[] = $trailingSpacePath;
+
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            ...$invalidPaths,
+        ], expectedExit: 1);
+        foreach ($rules as $rule) {
+            self::assertStringContainsString($rule, $output);
+        }
+
+        mkdir($this->workspace . '/web');
+        $this->copyIntegrationFixture('Linter/ExcludedEntrypoint.php', 'web/index.php');
+        $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'lint', 'web/index.php']);
+
+        $migration = 'src/m250101_000000_create_table.php';
+        $this->copyIntegrationFixture('Linter/ExcludedMigration.php', $migration);
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            $migration,
+        ], expectedExit: 1);
+        self::assertStringContainsString('class-name', $output);
+        self::assertStringNotContainsString('require-namespace', $output);
+    }
+
     public function testProjectCanOverrideSharedSettings(): void
     {
         $this->installPackage();
@@ -168,11 +242,6 @@ final class ConsumerTest extends TestCase
         self::assertFileDoesNotExist($archive . 'composer.lock');
     }
 
-    private function copyConsumerFile(string $path): void
-    {
-        self::assertTrue(copy(dirname(__DIR__) . '/consumer/' . $path, $this->workspace . '/' . $path));
-    }
-
     private function copyIntegrationFixture(string $fixture, string $destination): void
     {
         self::assertTrue(copy(__DIR__ . '/Fixtures/' . $fixture, $this->workspace . '/' . $destination));
@@ -180,11 +249,16 @@ final class ConsumerTest extends TestCase
 
     private function installPackage(bool $symlink = true): void
     {
-        $this->copyConsumerFile('composer.json');
-        $this->copyConsumerFile('mago.toml');
-        $this->copyConsumerFile('mago-overrides.toml');
-        $this->copyConsumerFile('mago-disabled.toml');
-        $this->copyConsumerFile('src/Example.php');
+        $consumerDirectory = dirname(__DIR__) . '/consumer/';
+        foreach ([
+            'composer.json',
+            'mago.toml',
+            'mago-overrides.toml',
+            'mago-disabled.toml',
+            'src/Example.php',
+        ] as $path) {
+            self::assertTrue(copy($consumerDirectory . $path, $this->workspace . '/' . $path));
+        }
 
         $root = dirname(__DIR__, levels: 2);
         $package = 'ilyakabanov/mago-yii2-extension';

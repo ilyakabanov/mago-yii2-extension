@@ -8,11 +8,14 @@ A Mago extension intended to add Yii2 framework awareness to the [Mago](https://
 
 The package currently provides:
 
-- a shared `yii2.mago.toml` preset with initial formatter settings and a short-array check;
+- a shared `yii2.mago.toml` preset with Yii2-oriented formatter settings;
+- 14 explicitly configured Mago core lint rules;
 - the `yii2/private-property-underscore` linter rule;
 - an analyzer-plugin scaffold, without Yii2-specific type inference yet.
 
-This is not a replacement for PHPStan yet, and the preset does not implement the complete Yii2 Coding Standards. Other built-in Mago rules remain at their normal defaults.
+The configured core rules are `array-style`, `block-statement`, `class-name`, `constant-name`, `lowercase-keyword`, `lowercase-type-hint`, `method-name`, `no-closing-tag`, `no-short-opening-tag`, `no-side-effects-with-declarations`, `no-trailing-space`, `optional-param-order`, `require-namespace`, and `single-class-per-file`.
+
+This is not a replacement for PHPStan or PHPCS yet. The preset provides partial Yii2 Coding Standards coverage. Built-in rules not listed above retain their normal Mago defaults.
 
 **Known fix limitation:** the private-property rule currently renames declarations without updating their usages. Do not apply its automatic fixes; use lint diagnostics only.
 
@@ -118,7 +121,7 @@ The example application in [`tests/consumer/`](tests/consumer/) contains a Compo
 
 Intentional violations and expected formatter output live next to the integration test in [`tests/Integration/Fixtures/`](tests/Integration/Fixtures/).
 
-The PHPUnit integration tests install copies of the clean consumer with Composer and add violations only inside temporary projects. They verify symlinked and mirrored installations, worker registration, the custom lint rule, project overrides, archive contents, and that the clean example passes lint and format checks. Tests reuse the installed dependency versions recorded in `composer.lock` without downloads and leave source examples and fixtures unchanged.
+The PHPUnit integration tests install copies of the clean consumer with Composer and add violations only inside temporary projects. They verify symlinked and mirrored installations, worker registration, the configured core rules and Yii2 path exclusions, the custom lint rule, project overrides, archive contents, and that the clean example passes lint and format checks. Tests reuse the installed dependency versions recorded in `composer.lock` without downloads and leave source examples and fixtures unchanged.
 
 The corpus test starts the real extension worker and verifies that the extension can be registered by Mago. Yii2-specific corpus cases will be added together with their corresponding features.
 
