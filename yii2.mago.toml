@@ -1,0 +1,16 @@
+# Shared settings for Yii2 applications. Import this file, not the package's mago.toml:
+# extends = "vendor/ilyakabanov/mago-yii2-extension/yii2.mago.toml"
+
+[extension-hosts.yii2]
+command = ["php", "vendor/bin/mago-yii2-worker.php"]
+
+# Initial Yii2 style defaults, not full yii2-coding-standards parity.
+[formatter]
+preset = "psr-12"
+single-quote = true
+space-around-assignment-in-declare = false
+space-within-grouping-parenthesis = false
+expand-use-groups = true
+
+[linter.rules]
+array-style = { enabled = true, level = "error", style = "short" }

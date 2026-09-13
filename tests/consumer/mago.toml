@@ -1,0 +1,4 @@
+extends = "vendor/ilyakabanov/mago-yii2-extension/yii2.mago.toml"
+
+[source]
+paths = ["src"]

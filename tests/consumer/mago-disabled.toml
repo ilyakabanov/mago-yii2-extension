@@ -1,0 +1,7 @@
+extends = "mago.toml"
+
+[linter.rules]
+array-style = { enabled = false }
+
+[extension-hosts.yii2]
+enabled = false
