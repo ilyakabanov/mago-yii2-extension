@@ -8,6 +8,7 @@ class InvalidPromotedProperty
 {
     public function __construct(
         private string $promotedParam,
+        private readonly string $readonlyPromotedParam,
         public string $publicParam,
     ) {}
 }

@@ -42,102 +42,132 @@ final class PrivatePropertyUnderscoreRuleTest extends RuleTestCase
     }
 
     #[DataProvider('provideValidFixtures')]
-    public function testAcceptsValidFixtures(string $filePath): void
+    public function testAcceptsValidFixtures(string $filePath, string $phpVersion): void
     {
-        $this->assertValidFixtureFile($filePath);
+        $this->assertValidFixtureFile($filePath, $phpVersion);
     }
 
     /**
-     * @param list<string> $expectedMessages
+     * @param list<array{message: string, line: int, column: int}> $expectedIssues
      */
     #[DataProvider('provideInvalidFixtures')]
-    public function testDetectsInvalidFixtures(string $filePath, array $expectedMessages): void
+    public function testDetectsInvalidFixtures(string $filePath, array $expectedIssues, string $phpVersion): void
     {
-        $this->assertInvalidFixtureFile($filePath, $expectedMessages);
+        $this->assertInvalidFixtureFile($filePath, $expectedIssues, $phpVersion);
     }
 
-    #[DataProvider('provideAutoFixFixtures')]
-    public function testAppliesAutoFix(string $invalidFilePath, string $expectedFixedFilePath): void
+    public function testDoesNotApplyUnsafeAutoFix(): void
     {
-        $this->assertAutoFixFixtureFile($invalidFilePath, $expectedFixedFilePath);
+        $this->assertFixtureIsNotModifiedByFix(self::FIXTURES_DIR . '/Invalid/InvalidPropertyWithUsage.php');
     }
 
     /**
-     * @return iterable<string, array{filePath: string}>
+     * @return iterable<string, array{filePath: string, phpVersion: string}>
      */
     public static function provideValidFixtures(): iterable
     {
         yield 'valid private properties' => [
             'filePath' => self::FIXTURES_DIR . '/Valid/ValidProperties.php',
+            'phpVersion' => '8.1',
         ];
 
         yield 'valid promoted constructor properties' => [
             'filePath' => self::FIXTURES_DIR . '/Valid/ValidPromotedProperties.php',
+            'phpVersion' => '8.1',
         ];
 
         yield 'valid public and protected properties' => [
             'filePath' => self::FIXTURES_DIR . '/Valid/ValidPublicProtected.php',
+            'phpVersion' => '8.1',
+        ];
+
+        yield 'valid PHP 8.4 properties' => [
+            'filePath' => self::FIXTURES_DIR . '/Valid/ValidPhp84Properties.php',
+            'phpVersion' => '8.4',
         ];
     }
 
     /**
-     * @return iterable<string, array{filePath: string, expectedMessages: list<string>}>
+     * @return iterable<string, array{
+     *     filePath: string,
+     *     expectedIssues: list<array{message: string, line: int, column: int}>,
+     *     phpVersion: string,
+     * }>
      */
     public static function provideInvalidFixtures(): iterable
     {
         yield 'invalid plain property' => [
             'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidPlainProperty.php',
-            'expectedMessages' => [
-                'Private property $unprefixedName must start with an underscore prefix ($_unprefixedName).',
-            ],
+            'expectedIssues' => [[
+                'message' => 'Private property $unprefixedName must start with an underscore prefix ($_unprefixedName).',
+                'line' => 9,
+                'column' => 20,
+            ]],
+            'phpVersion' => '8.1',
         ];
 
         yield 'invalid multiple properties in one declaration' => [
             'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidMultiProperty.php',
-            'expectedMessages' => [
-                'Private property $firstCoord must start with an underscore prefix ($_firstCoord).',
-                'Private property $secondCoord must start with an underscore prefix ($_secondCoord).',
+            'expectedIssues' => [
+                [
+                    'message' => 'Private property $firstCoord must start with an underscore prefix ($_firstCoord).',
+                    'line' => 9,
+                    'column' => 17,
+                ],
+                [
+                    'message' => 'Private property $secondCoord must start with an underscore prefix ($_secondCoord).',
+                    'line' => 9,
+                    'column' => 34,
+                ],
             ],
+            'phpVersion' => '8.1',
         ];
 
         yield 'invalid promoted constructor property' => [
             'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidPromotedProperty.php',
-            'expectedMessages' => [
-                'Private promoted property $promotedParam must start with an underscore prefix ($_promotedParam).',
+            'expectedIssues' => [
+                [
+                    'message' => 'Private promoted property $promotedParam must start with an underscore prefix ($_promotedParam).',
+                    'line' => 10,
+                    'column' => 24,
+                ],
+                [
+                    'message' => 'Private promoted property $readonlyPromotedParam must start with an underscore prefix ($_readonlyPromotedParam).',
+                    'line' => 11,
+                    'column' => 33,
+                ],
             ],
+            'phpVersion' => '8.1',
         ];
 
         yield 'invalid static property' => [
             'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidStaticProperty.php',
-            'expectedMessages' => [
-                'Private property $singletonInstance must start with an underscore prefix ($_singletonInstance).',
-            ],
-        ];
-    }
-
-    /**
-     * @return iterable<string, array{invalidFilePath: string, expectedFixedFilePath: string}>
-     */
-    public static function provideAutoFixFixtures(): iterable
-    {
-        yield 'auto-fixes plain property' => [
-            'invalidFilePath' => self::FIXTURES_DIR . '/Invalid/InvalidPlainProperty.php',
-            'expectedFixedFilePath' => self::FIXTURES_DIR . '/Fixed/FixedPlainProperty.php',
+            'expectedIssues' => [[
+                'message' => 'Private property $singletonInstance must start with an underscore prefix ($_singletonInstance).',
+                'line' => 9,
+                'column' => 26,
+            ]],
+            'phpVersion' => '8.1',
         ];
 
-        yield 'auto-fixes multiple properties' => [
-            'invalidFilePath' => self::FIXTURES_DIR . '/Invalid/InvalidMultiProperty.php',
-            'expectedFixedFilePath' => self::FIXTURES_DIR . '/Fixed/FixedMultiProperty.php',
+        yield 'invalid readonly property' => [
+            'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidReadonlyProperty.php',
+            'expectedIssues' => [[
+                'message' => 'Private property $readonlyProperty must start with an underscore prefix ($_readonlyProperty).',
+                'line' => 9,
+                'column' => 29,
+            ]],
+            'phpVersion' => '8.1',
         ];
 
-        yield 'auto-fixes promoted property' => [
-            'invalidFilePath' => self::FIXTURES_DIR . '/Invalid/InvalidPromotedProperty.php',
-            'expectedFixedFilePath' => self::FIXTURES_DIR . '/Fixed/FixedPromotedProperty.php',
-        ];
-
-        yield 'auto-fixes static property' => [
-            'invalidFilePath' => self::FIXTURES_DIR . '/Invalid/InvalidStaticProperty.php',
-            'expectedFixedFilePath' => self::FIXTURES_DIR . '/Fixed/FixedStaticProperty.php',
+        yield 'invalid PHP 8.4 hooked property' => [
+            'filePath' => self::FIXTURES_DIR . '/Invalid/InvalidHookedProperty.php',
+            'expectedIssues' => [[
+                'message' => 'Private property $hookedProperty must start with an underscore prefix ($_hookedProperty).',
+                'line' => 9,
+                'column' => 20,
+            ]],
+            'phpVersion' => '8.4',
         ];
     }
 }

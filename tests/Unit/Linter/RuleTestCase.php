@@ -6,8 +6,8 @@ namespace Ilyakabanov\MagoYii2\Tests\Linter;
 
 use PHPUnit\Framework\TestCase;
 
-use function array_column;
 use function basename;
+use function count;
 use function dirname;
 use function escapeshellarg;
 use function file_exists;
@@ -18,6 +18,8 @@ use function json_decode;
 use function json_encode;
 use function shell_exec;
 use function sprintf;
+use function strrpos;
+use function substr;
 use function trim;
 use function uniqid;
 use function unlink;
@@ -39,12 +41,12 @@ abstract class RuleTestCase extends TestCase
         parent::tearDown();
     }
 
-    protected function assertValidFixtureFile(string $filePath): void
+    protected function assertValidFixtureFile(string $filePath, string $phpVersion = '8.1'): void
     {
         $code = file_get_contents($filePath);
         self::assertIsString($code);
 
-        $issues = $this->runLint($code);
+        $issues = $this->runLint($code, $phpVersion);
 
         self::assertEmpty(
             $issues,
@@ -54,62 +56,93 @@ abstract class RuleTestCase extends TestCase
     }
 
     /**
-     * @param list<string> $expectedMessages
+     * @param list<array{message: string, line: int, column: int}> $expectedIssues
      */
-    protected function assertInvalidFixtureFile(string $filePath, array $expectedMessages): void
+    protected function assertInvalidFixtureFile(
+        string $filePath,
+        array $expectedIssues,
+        string $phpVersion = '8.1',
+    ): void {
+        $code = file_get_contents($filePath);
+        self::assertIsString($code);
+
+        $issues = $this->runLint($code, $phpVersion);
+        self::assertCount(count($expectedIssues), $issues);
+
+        foreach ($expectedIssues as $index => $expectedIssue) {
+            $issue = $issues[$index];
+            $start = $issue['annotations'][0]['span']['start'];
+
+            self::assertSame($this->getRuleCode(), $issue['code']);
+            self::assertSame('Error', $issue['level']);
+            self::assertSame($expectedIssue['message'], $issue['message']);
+            self::assertSame($expectedIssue['line'], $start['line'] + 1);
+            self::assertSame($expectedIssue['column'], $this->getColumn($code, $start['offset']));
+            self::assertEmpty($issue['edits'] ?? []);
+        }
+    }
+
+    protected function assertFixtureIsNotModifiedByFix(string $filePath, string $phpVersion = '8.1'): void
     {
         $code = file_get_contents($filePath);
         self::assertIsString($code);
 
-        $issues = $this->runLint($code);
-        $actualMessages = array_column($issues, 'message');
-
-        self::assertSame($expectedMessages, $actualMessages);
-    }
-
-    protected function assertAutoFixFixtureFile(string $invalidFilePath, string $expectedFixedFilePath): void
-    {
-        $invalidCode = file_get_contents($invalidFilePath);
-        $expectedFixedCode = file_get_contents($expectedFixedFilePath);
-        self::assertIsString($invalidCode);
-        self::assertIsString($expectedFixedCode);
-
-        $tempFilePath = $this->createTempFile($invalidCode);
+        $tempFilePath = $this->createTempFile($code);
         $relativeName = basename($tempFilePath);
         $ruleCode = $this->getRuleCode();
 
-        $this->executeMago("lint --only {$ruleCode} --fix src/{$relativeName}");
+        $this->executeMago("lint --only {$ruleCode} --fix src/{$relativeName}", $phpVersion);
 
-        $actualFixedCode = file_get_contents($tempFilePath);
-        self::assertIsString($actualFixedCode);
-        self::assertSame(trim($expectedFixedCode), trim($actualFixedCode));
-
-        // Ensure fixed code produces no remaining issues
-        $issues = $this->runLint($actualFixedCode);
-        self::assertEmpty(
-            $issues,
-            'Expected 0 lint issues after fix, but found: ' . json_encode($issues, flags: JSON_THROW_ON_ERROR),
-        );
+        $actualCode = file_get_contents($tempFilePath);
+        self::assertIsString($actualCode);
+        self::assertSame($code, $actualCode);
     }
 
     /**
-     * @return list<array{code: string, level: string, message: string, help: string}>
+     * @return list<array{
+     *     code: string,
+     *     level: string,
+     *     message: string,
+     *     help: string,
+     *     annotations: list<array{span: array{start: array{offset: int, line: int}}}>,
+     *     edits?: list<mixed>,
+     * }>
      */
-    private function runLint(string $code): array
+    private function runLint(string $code, string $phpVersion): array
     {
         $filePath = $this->createTempFile($code);
         $relativeName = basename($filePath);
         $ruleCode = $this->getRuleCode();
 
-        $output = $this->executeMago("lint --only {$ruleCode} --reporting-format json src/{$relativeName}");
+        $output = $this->executeMago(
+            "lint --only {$ruleCode} --reporting-format json src/{$relativeName}",
+            $phpVersion,
+        );
         if ($output === null || trim($output) === '') {
             return [];
         }
 
-        /** @var array{issues?: list<array{code: string, level: string, message: string, help: string}>} $data */
+        /**
+         * @var array{issues?: list<array{
+         *     code: string,
+         *     level: string,
+         *     message: string,
+         *     help: string,
+         *     annotations: list<array{span: array{start: array{offset: int, line: int}}}>,
+         *     edits?: list<mixed>,
+         * }>} $data
+         */
         $data = json_decode($output, associative: true, depth: 512, flags: JSON_THROW_ON_ERROR);
 
         return $data['issues'] ?? [];
+    }
+
+    private function getColumn(string $code, int $offset): int
+    {
+        $lineBreak = strrpos(substr($code, offset: 0, length: $offset), needle: "\n");
+        $lineStart = $lineBreak === false ? 0 : $lineBreak + 1;
+
+        return $offset - $lineStart + 1;
     }
 
     private function createTempFile(string $code): string
@@ -133,15 +166,16 @@ abstract class RuleTestCase extends TestCase
         }
     }
 
-    private function executeMago(string $arguments): ?string
+    private function executeMago(string $arguments, string $phpVersion = '8.1'): ?string
     {
         $magoBin = dirname(__DIR__, levels: 3) . '/vendor/bin/mago';
         $corpusDir = dirname(__DIR__, levels: 2) . '/corpus';
 
         $command = sprintf(
-            '%s --workspace %s %s 2>/dev/null',
+            '%s --workspace %s --php-version %s %s 2>/dev/null',
             escapeshellarg($magoBin),
             escapeshellarg($corpusDir),
+            escapeshellarg($phpVersion),
             $arguments,
         );
 
