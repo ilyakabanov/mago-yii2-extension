@@ -1,0 +1,3 @@
+<?
+
+echo 'Short opening tag';
