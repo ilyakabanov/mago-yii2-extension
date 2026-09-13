@@ -17,7 +17,7 @@ The configured core rules are `array-style`, `block-statement`, `class-name`, `c
 
 This is not a replacement for PHPStan or PHPCS yet. The preset provides partial Yii2 Coding Standards coverage. Built-in rules not listed above retain their normal Mago defaults.
 
-**Known fix limitation:** the private-property rule currently renames declarations without updating their usages. Do not apply its automatic fixes; use lint diagnostics only.
+The private-property rule is diagnostic-only. Rename affected properties with a symbol-aware tool so declarations, usages, and promoted-property named arguments stay consistent.
 
 ## Identity
 

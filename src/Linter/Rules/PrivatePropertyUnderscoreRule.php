@@ -9,7 +9,6 @@ use Mago\Sdk\Linter\Rule;
 use Mago\Sdk\Linter\RuleDefinition;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
-use Mago\Sdk\Reporting\TextEdit;
 use Mago\Sdk\Syntax\Node;
 use Mago\Sdk\Syntax\NodeKind;
 
@@ -113,9 +112,6 @@ final class PrivatePropertyUnderscoreRule implements Rule
         $context->report(Issue::new(
             "Private {$targetType} \${$varName} must start with an underscore prefix (\$_{$varName}).",
             $varNode->span,
-        )->withHelp("Rename \${$varName} to \$_{$varName}.")->withEdit(TextEdit::replace(
-            $varNode->span,
-            '$_' . $varName,
-        )));
+        )->withHelp("Rename \${$varName} to \$_{$varName}."));
     }
 }
