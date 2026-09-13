@@ -70,6 +70,20 @@ final class ConsumerTest extends TestCase
             'src/PrivateProperty.php',
         ], expectedExit: 1);
         self::assertStringContainsString('yii2/private-property-underscore', $output);
+
+        $this->copyIntegrationFixture('Linter/IsolatedAstRules.php', 'src/IsolatedAstRules.php');
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            'src/IsolatedAstRules.php',
+        ], expectedExit: 1);
+        self::assertStringContainsString('yii2/else-if-declaration', $output);
+        self::assertStringContainsString('yii2/short-form-type-keywords', $output);
+        self::assertStringContainsString('yii2/method-scope', $output);
+        self::assertStringContainsString('yii2/constant-visibility', $output);
+        self::assertStringContainsString('yii2/import-statement', $output);
+        self::assertStringContainsString('yii2/class-instantiation', $output);
     }
 
     public function testPresetEnablesReadyMagoRules(): void

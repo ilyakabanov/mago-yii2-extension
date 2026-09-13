@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace Ilyakabanov\MagoYii2;
 
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
+use Ilyakabanov\MagoYii2\Linter\Rules\ClassInstantiationRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\MethodScopeRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\PrivatePropertyUnderscoreRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ShortFormTypeKeywordsRule;
 use Mago\Sdk\Extension;
 
 /**
@@ -27,6 +33,12 @@ final class Yii2Extension
             version: self::VERSION,
             linterRules: [
                 new PrivatePropertyUnderscoreRule(),
+                new ElseIfDeclarationRule(),
+                new ShortFormTypeKeywordsRule(),
+                new MethodScopeRule(),
+                new ConstantVisibilityRule(),
+                new ImportStatementRule(),
+                new ClassInstantiationRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );
