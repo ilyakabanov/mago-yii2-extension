@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ilyakabanov\MagoYii2;
 
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
+use Ilyakabanov\MagoYii2\Linter\Rules\ClassDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ClassInstantiationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\CompoundNamespaceDepthRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
@@ -47,6 +48,7 @@ final class Yii2Extension
                 new MethodDeclarationRule(),
                 new CompoundNamespaceDepthRule(),
                 new TraitUseDeclarationRule(),
+                new ClassDeclarationRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );
