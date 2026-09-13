@@ -6,12 +6,16 @@ namespace Ilyakabanov\MagoYii2;
 
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
 use Ilyakabanov\MagoYii2\Linter\Rules\ClassInstantiationRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\CompoundNamespaceDepthRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\MethodDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\MethodScopeRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\PrivatePropertyUnderscoreRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\PropertyDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ShortFormTypeKeywordsRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\TraitUseDeclarationRule;
 use Mago\Sdk\Extension;
 
 /**
@@ -39,6 +43,10 @@ final class Yii2Extension
                 new ConstantVisibilityRule(),
                 new ImportStatementRule(),
                 new ClassInstantiationRule(),
+                new PropertyDeclarationRule(),
+                new MethodDeclarationRule(),
+                new CompoundNamespaceDepthRule(),
+                new TraitUseDeclarationRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );

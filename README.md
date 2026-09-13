@@ -10,14 +10,14 @@ The package currently provides:
 
 - a shared `yii2.mago.toml` preset with Yii2-oriented formatter settings;
 - 14 explicitly configured Mago core lint rules;
-- seven Yii2 Coding Standards linter rules;
+- eleven Yii2 Coding Standards linter rules;
 - an analyzer-plugin scaffold, without Yii2-specific type inference yet.
 
 The configured core rules are `array-style`, `block-statement`, `class-name`, `constant-name`, `lowercase-keyword`, `lowercase-type-hint`, `method-name`, `no-closing-tag`, `no-short-opening-tag`, `no-side-effects-with-declarations`, `no-trailing-space`, `optional-param-order`, `require-namespace`, and `single-class-per-file`.
 
 This is not a replacement for PHPStan or PHPCS yet. The preset provides partial Yii2 Coding Standards coverage. Built-in rules not listed above retain their normal Mago defaults.
 
-The custom rules are `yii2/private-property-underscore`, `yii2/else-if-declaration`, `yii2/short-form-type-keywords`, `yii2/method-scope`, `yii2/constant-visibility`, `yii2/import-statement`, and `yii2/class-instantiation`.
+The custom rules are `yii2/private-property-underscore`, `yii2/else-if-declaration`, `yii2/short-form-type-keywords`, `yii2/method-scope`, `yii2/constant-visibility`, `yii2/import-statement`, `yii2/class-instantiation`, `yii2/property-declaration`, `yii2/method-declaration`, `yii2/compound-namespace-depth`, and `yii2/trait-use-declaration`.
 
 All custom rules are diagnostic-only. Rename affected private properties with a symbol-aware tool so declarations, usages, and promoted-property named arguments stay consistent.
 
