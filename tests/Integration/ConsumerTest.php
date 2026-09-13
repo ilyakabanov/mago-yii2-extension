@@ -84,6 +84,45 @@ final class ConsumerTest extends TestCase
         self::assertStringContainsString('yii2/constant-visibility', $output);
         self::assertStringContainsString('yii2/import-statement', $output);
         self::assertStringContainsString('yii2/class-instantiation', $output);
+
+        $this->copyIntegrationFixture('Linter/StructuralDeclarationRules.php', 'src/StructuralDeclarationRules.php');
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            'src/StructuralDeclarationRules.php',
+        ], expectedExit: 1);
+        self::assertStringContainsString('yii2/property-declaration', $output);
+        self::assertStringContainsString('yii2/method-declaration', $output);
+        self::assertStringContainsString('yii2/compound-namespace-depth', $output);
+        self::assertStringContainsString('yii2/trait-use-declaration', $output);
+
+        mkdir($this->workspace . '/src/tests');
+        $excludedMethodPath = 'src/tests/AllowedMethodNameTest.php';
+        $this->copyIntegrationFixture('Linter/AllowedMethodName.php', $excludedMethodPath);
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            '--only',
+            'yii2/method-declaration',
+            $excludedMethodPath,
+        ], expectedExit: 1);
+        self::assertStringContainsString('The `final` modifier must precede method visibility.', $output);
+        self::assertStringNotContainsString('Method name "_helper"', $output);
+
+        $excludedMethodPath = 'src/tests/AllowedMethodNameCest.php';
+        $this->copyIntegrationFixture('Linter/AllowedMethodName.php', $excludedMethodPath);
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            '--only',
+            'yii2/method-declaration',
+            $excludedMethodPath,
+        ], expectedExit: 1);
+        self::assertStringContainsString('The `final` modifier must precede method visibility.', $output);
+        self::assertStringNotContainsString('Method name "_helper"', $output);
     }
 
     public function testPresetEnablesReadyMagoRules(): void
