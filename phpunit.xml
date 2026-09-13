@@ -6,6 +6,9 @@
         <testsuite name="Mago Extension Template">
             <directory>tests/Unit</directory>
         </testsuite>
+        <testsuite name="Composer consumer">
+            <directory>tests/Integration</directory>
+        </testsuite>
     </testsuites>
 </phpunit>
 

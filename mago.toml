@@ -3,6 +3,6 @@ version = "1"
 php-version = "8.1"
 
 [source]
-paths = ["src", "tests/Unit"]
+paths = ["bin", "src", "tests/Unit", "tests/Integration"]
 includes = ["vendor"]
-excludes = ["tests/Unit/**/Fixtures/**"]
+excludes = ["tests/Unit/**/Fixtures/**", "tests/Integration/Fixtures/**"]

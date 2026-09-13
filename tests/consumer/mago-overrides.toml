@@ -1,0 +1,7 @@
+extends = "mago.toml"
+
+[formatter]
+single-quote = false
+
+[linter.rules]
+array-style = { level = "warning" }
