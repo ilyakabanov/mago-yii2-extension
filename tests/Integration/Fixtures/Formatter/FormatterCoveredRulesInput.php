@@ -106,6 +106,29 @@ final  class FormatterCoveredRules implements FirstContract, SecondContract {
         return $result;
     }
 
+    public function formatBooleanOperatorPlacement(bool $enabled, bool $fallback, string $value): array
+    {
+        $result = [];
+        if (
+            $enabled &&
+            str_contains($value, 'first intentionally descriptive boolean operator placement condition segment')
+            || $fallback
+        ) {
+            $result[] = 'if';
+        }
+        while (
+            $enabled
+            && str_contains($value, 'second intentionally descriptive boolean operator placement condition segment') ||
+            $fallback
+        ) {
+            $enabled = false;
+            $fallback = false;
+            $result[] = 'while';
+        }
+
+        return $result;
+    }
+
     private function combine(mixed ...$values): array
     {
         return $values;
