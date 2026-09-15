@@ -8,7 +8,7 @@ final class AllowedMethodNameTest
     {
     }
 
-    public final function misplacedModifier(): void
+    final public function allowedModifierOrder(): void
     {
     }
 }

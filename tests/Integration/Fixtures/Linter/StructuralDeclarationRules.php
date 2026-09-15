@@ -2,15 +2,15 @@
 
 namespace Fixture;
 
-use Vendor\Package\{Http\Client\Factory};
-
 class StructuralDeclarationRules
 {
     var $legacy;
 
-    use FirstTrait, SecondTrait;
+    use FirstTrait;
 
-    public final static function _legacy(): void
+    final public static function _legacy(): void
     {
     }
+
+    use SecondTrait;
 }

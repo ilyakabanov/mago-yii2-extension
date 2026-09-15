@@ -19,4 +19,8 @@ abstract class ValidMethodDeclaration
     public function _(): void
     {
     }
+
+    final public static function canonicalOrder(): void
+    {
+    }
 }

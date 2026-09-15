@@ -12,12 +12,8 @@ use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\Syntax\Node;
 use Mago\Sdk\Syntax\NodeKind;
 
-use function array_filter;
-use function array_values;
-use function count;
-
 /**
- * Enforces the structural requirements for trait imports.
+ * Keeps trait imports together before other class members.
  *
  * @api
  */
@@ -28,7 +24,7 @@ final class TraitUseDeclarationRule implements Rule
         return new RuleDefinition(
             code: 'yii2/trait-use-declaration',
             name: 'Trait use declaration',
-            description: 'Requires one trait per import and keeps trait imports together before other members.',
+            description: 'Keeps trait imports together before other class members.',
             defaultLevel: Level::Error,
             defaultEnabled: true,
             targets: [NodeKind::Class_, NodeKind::Trait, NodeKind::Enum, NodeKind::AnonymousClass],
@@ -51,8 +47,6 @@ final class TraitUseDeclarationRule implements Rule
                 continue;
             }
 
-            $this->lintTraitCount($context, $traitUse);
-
             if (!$hasNonTraitMember) {
                 $hasTraitUse = true;
                 continue;
@@ -66,21 +60,6 @@ final class TraitUseDeclarationRule implements Rule
 
             $this->reportSeparatedTraitUse($context, $traitUse);
         }
-    }
-
-    private function lintTraitCount(LintContext $context, Node $traitUse): void
-    {
-        $traits = array_values(array_filter(
-            $context->file->getChildren($traitUse),
-            static fn(Node $child): bool => $child->kind === NodeKind::Identifier,
-        ));
-        if (count($traits) <= 1) {
-            return;
-        }
-
-        $context->report(Issue::new('Each trait must have its own `use` statement.', $traits[1]->span)->withHelp(
-            'Split the traits into separate `use` statements.',
-        ));
     }
 
     private function reportSeparatedTraitUse(LintContext $context, Node $traitUse): void
