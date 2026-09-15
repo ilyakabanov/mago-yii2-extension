@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ilyakabanov\MagoYii2;
 
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
+use Ilyakabanov\MagoYii2\Linter\Rules\ByteOrderMarkRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
@@ -43,6 +44,7 @@ final class Yii2Extension
                 new PropertyDeclarationRule(),
                 new MethodDeclarationRule(),
                 new TraitUseDeclarationRule(),
+                new ByteOrderMarkRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );

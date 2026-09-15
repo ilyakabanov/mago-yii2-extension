@@ -1,0 +1,5 @@
+ÿþ<?php
+
+final class InvalidUtf16LittleEndianByteOrderMark
+{
+}

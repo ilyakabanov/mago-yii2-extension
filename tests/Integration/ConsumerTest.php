@@ -90,6 +90,17 @@ final class ConsumerTest extends TestCase
         self::assertStringContainsString('yii2/method-declaration', $output);
         self::assertStringContainsString('yii2/trait-use-declaration', $output);
 
+        $this->copyIntegrationFixture('Linter/ByteOrderMark.php', 'src/ByteOrderMark.php');
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            '--only',
+            'yii2/byte-order-mark',
+            'src/ByteOrderMark.php',
+        ], expectedExit: 1);
+        self::assertStringContainsString('yii2/byte-order-mark', $output);
+
         mkdir($this->workspace . '/src/tests');
         $excludedMethodPath = 'src/tests/AllowedMethodNameTest.php';
         $this->copyIntegrationFixture('Linter/AllowedMethodName.php', $excludedMethodPath);
