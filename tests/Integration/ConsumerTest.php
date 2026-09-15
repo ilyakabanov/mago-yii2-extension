@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ilyakabanov\MagoYii2\Tests\Integration;
 
-use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -42,13 +42,8 @@ final class ConsumerTest extends TestCase
         rmdir($this->workspace);
     }
 
-    /** @return array<string, array{bool}> */
-    public static function installationModes(): array
-    {
-        return ['symlink' => [true], 'mirror' => [false]];
-    }
-
-    #[DataProvider('installationModes')]
+    #[TestWith([true])]
+    #[TestWith([false])]
     public function testComposerConsumerCanLoadThePreset(bool $symlink): void
     {
         $this->installPackage($symlink);
@@ -297,6 +292,56 @@ final class ConsumerTest extends TestCase
             '--json',
         ]);
         self::assertStringContainsString('"hosts": []', $output);
+    }
+
+    public function testProjectNormalizesWhitespaceAndFileLayout(): void
+    {
+        $this->installPackage();
+
+        $whitespaceFileLayoutPath = 'src/WhitespaceFileLayout.php';
+        /** @var string $whitespaceFileLayoutInput */
+        $whitespaceFileLayoutInput = require __DIR__ . '/Fixtures/Formatter/WhitespaceFileLayoutInput.php';
+        /** @var string $whitespaceFileLayoutExpected */
+        $whitespaceFileLayoutExpected = require __DIR__ . '/Fixtures/Formatter/WhitespaceFileLayoutExpected.php';
+
+        self::assertIsString($whitespaceFileLayoutInput);
+        self::assertIsString($whitespaceFileLayoutExpected);
+        self::assertStringContainsString("\r\n", $whitespaceFileLayoutInput);
+        self::assertStringContainsString("\r", str_replace(
+            search: "\r\n",
+            replace: '',
+            subject: $whitespaceFileLayoutInput,
+        ));
+        self::assertStringContainsString("\t", $whitespaceFileLayoutInput);
+        self::assertMatchesRegularExpression('/[ \t]+(?:\r\n|\r|$)/', $whitespaceFileLayoutInput);
+        self::assertFalse(str_ends_with($whitespaceFileLayoutInput, "\n"));
+        self::assertFalse(str_ends_with($whitespaceFileLayoutInput, "\r"));
+        self::assertStringNotContainsString("\r", $whitespaceFileLayoutExpected);
+        self::assertStringNotContainsString("\t", $whitespaceFileLayoutExpected);
+        self::assertStringEndsWith("}\n", $whitespaceFileLayoutExpected);
+
+        self::assertIsInt(file_put_contents(
+            $this->workspace . '/' . $whitespaceFileLayoutPath,
+            $whitespaceFileLayoutInput,
+        ));
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            $whitespaceFileLayoutPath,
+        ], expectedExit: 1);
+        $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', $whitespaceFileLayoutPath]);
+        $whitespaceFileLayoutOutput = file_get_contents($this->workspace . '/' . $whitespaceFileLayoutPath);
+        self::assertIsString($whitespaceFileLayoutOutput);
+        self::assertSame($whitespaceFileLayoutExpected, $whitespaceFileLayoutOutput);
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            $whitespaceFileLayoutPath,
+        ]);
     }
 
     public function testComposerArchiveContainsOnlyDistributedFiles(): void
