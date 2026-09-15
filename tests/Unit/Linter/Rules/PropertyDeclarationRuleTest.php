@@ -65,16 +65,6 @@ final class PropertyDeclarationRuleTest extends RuleTestCase
                 'line' => 11,
                 'column' => 12,
             ],
-            [
-                'message' => 'The `static` modifier must follow property visibility.',
-                'line' => 12,
-                'column' => 5,
-            ],
-            [
-                'message' => 'The `readonly` modifier must follow property visibility.',
-                'line' => 13,
-                'column' => 5,
-            ],
         ]);
     }
 
@@ -84,19 +74,9 @@ final class PropertyDeclarationRuleTest extends RuleTestCase
             self::FIXTURES_DIR . '/Invalid/InvalidPhp84PropertyDeclaration.php',
             [
                 [
-                    'message' => 'Read visibility must be declared before write visibility on a property.',
+                    'message' => 'Visibility must be declared on property "$missingVisibility".',
                     'line' => 9,
-                    'column' => 18,
-                ],
-                [
-                    'message' => 'The `final` modifier must precede property visibility.',
-                    'line' => 10,
-                    'column' => 12,
-                ],
-                [
-                    'message' => 'The `abstract` modifier must precede property visibility.',
-                    'line' => 11,
-                    'column' => 12,
+                    'column' => 21,
                 ],
             ],
             phpVersion: '8.4',

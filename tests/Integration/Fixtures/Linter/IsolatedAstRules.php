@@ -17,7 +17,7 @@ final class IsolatedAstRules
         }
 
         $bool = (boolean) $value;
-        $service = new Service;
+        $service = new Service();
     }
 
     function missingVisibility(): void

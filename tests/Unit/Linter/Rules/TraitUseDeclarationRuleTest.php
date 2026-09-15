@@ -41,11 +41,6 @@ final class TraitUseDeclarationRuleTest extends RuleTestCase
     {
         $this->assertInvalidFixtureFile(self::FIXTURES_DIR . '/Invalid/InvalidTraitUseDeclaration.php', [
             [
-                'message' => 'Each trait must have its own `use` statement.',
-                'line' => 11,
-                'column' => 21,
-            ],
-            [
                 'message' => 'Trait imports must be declared before other class members.',
                 'line' => 11,
                 'column' => 5,

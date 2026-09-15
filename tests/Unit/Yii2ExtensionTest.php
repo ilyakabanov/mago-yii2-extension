@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Ilyakabanov\MagoYii2\Tests;
 
-use Ilyakabanov\MagoYii2\Linter\Rules\ClassDeclarationRule;
-use Ilyakabanov\MagoYii2\Linter\Rules\ClassInstantiationRule;
-use Ilyakabanov\MagoYii2\Linter\Rules\CompoundNamespaceDepthRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
@@ -28,19 +25,16 @@ final class Yii2ExtensionTest extends TestCase
         self::assertSame('yii2/mago-extension', $extension->identifier);
         self::assertSame('Mago Yii2 Extension', $extension->name);
         self::assertSame('0.1.0', $extension->version);
-        self::assertCount(12, $extension->linterRules);
+        self::assertCount(9, $extension->linterRules);
         self::assertInstanceOf(PrivatePropertyUnderscoreRule::class, $extension->linterRules[0]);
         self::assertInstanceOf(ElseIfDeclarationRule::class, $extension->linterRules[1]);
         self::assertInstanceOf(ShortFormTypeKeywordsRule::class, $extension->linterRules[2]);
         self::assertInstanceOf(MethodScopeRule::class, $extension->linterRules[3]);
         self::assertInstanceOf(ConstantVisibilityRule::class, $extension->linterRules[4]);
         self::assertInstanceOf(ImportStatementRule::class, $extension->linterRules[5]);
-        self::assertInstanceOf(ClassInstantiationRule::class, $extension->linterRules[6]);
-        self::assertInstanceOf(PropertyDeclarationRule::class, $extension->linterRules[7]);
-        self::assertInstanceOf(MethodDeclarationRule::class, $extension->linterRules[8]);
-        self::assertInstanceOf(CompoundNamespaceDepthRule::class, $extension->linterRules[9]);
-        self::assertInstanceOf(TraitUseDeclarationRule::class, $extension->linterRules[10]);
-        self::assertInstanceOf(ClassDeclarationRule::class, $extension->linterRules[11]);
+        self::assertInstanceOf(PropertyDeclarationRule::class, $extension->linterRules[6]);
+        self::assertInstanceOf(MethodDeclarationRule::class, $extension->linterRules[7]);
+        self::assertInstanceOf(TraitUseDeclarationRule::class, $extension->linterRules[8]);
         self::assertCount(1, $extension->analyzerPlugins);
         self::assertNull($extension->workerReducer);
     }

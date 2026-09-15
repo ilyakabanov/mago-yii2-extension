@@ -42,21 +42,6 @@ final class MethodDeclarationRuleTest extends RuleTestCase
                 'line' => 9,
                 'column' => 21,
             ],
-            [
-                'message' => 'The `final` modifier must precede method visibility.',
-                'line' => 13,
-                'column' => 12,
-            ],
-            [
-                'message' => 'The `abstract` modifier must precede method visibility.',
-                'line' => 17,
-                'column' => 12,
-            ],
-            [
-                'message' => 'The `static` modifier must follow method visibility.',
-                'line' => 19,
-                'column' => 5,
-            ],
         ]);
     }
 

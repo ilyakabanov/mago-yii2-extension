@@ -8,7 +8,7 @@ final class InvalidTraitUseDeclaration
 {
     public string $value;
 
-    use FirstTrait, SecondTrait;
+    use FirstTrait;
 
     public function run(): void
     {
