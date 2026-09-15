@@ -18,4 +18,17 @@ final class FormatterCoveredRules implements FirstContract, SecondContract
 
         return new $factory();
     }
+
+    public function buildLabel(int $left, int $right, bool $enabled): string
+    {
+        ++$left;
+        $left--;
+        --$right;
+        $right++;
+        $total = $left + $right;
+        $matches = $enabled && $left === $right;
+        $selected = $matches ? $total : $right;
+
+        return 'value:' . $selected;
+    }
 }
