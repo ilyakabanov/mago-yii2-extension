@@ -76,6 +76,36 @@ final  class FormatterCoveredRules implements FirstContract, SecondContract {
         return $result;
     }
 
+    public function formatLoopDeclarations(array $items, int $limit): array
+    {
+        $result = [];
+        foreach (array_values($items)as$key=>$item) {
+            $result[$key] = $item;
+        }
+        foreach ($items   as  $key  =>  &$item) {
+            $result[$key] = $item;
+        }
+        unset($item);
+        for ($index = 0 ;  $index < $limit  ;++$index) {
+            $result[] = $index;
+        }
+        for ($offset = 0  ;$offset < $limit ;  ++$offset) {
+            $result[] = $offset;
+        }
+        for (;;) {
+            break;
+        }
+        for (
+            $positionWithDescriptiveName = strlen('first intentionally descriptive loop initialization value') ;
+            $positionWithDescriptiveName < strlen('second intentionally descriptive loop condition value')  ;
+            ++$positionWithDescriptiveName
+        ) {
+            $result[] = $positionWithDescriptiveName;
+        }
+
+        return $result;
+    }
+
     private function combine(mixed ...$values): array
     {
         return $values;
