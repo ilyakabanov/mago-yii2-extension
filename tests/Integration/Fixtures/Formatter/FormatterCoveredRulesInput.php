@@ -54,6 +54,28 @@ final  class FormatterCoveredRules implements FirstContract, SecondContract {
         ];
     }
 
+    public function formatControlStructures(bool $first, bool $second, string $value): array
+    {
+        $result = [];
+        if  (  $first  )  { $result[] = 'if'; }elseif( $second ){ $result[] = 'elseif'; }else{ $result[] = 'else'; }
+        while( $first ){ $first = false; $result[] = 'while'; }
+        do{ $second = false; $result[] = 'do'; }while ( $second ) ;
+        switch  ( $value )  { case 'first': $result[] = 'switch'; break; default: $result[] = 'default'; }
+        try{ $result[] = 'try'; }catch  ( \RuntimeException $exception )  { $result[] = $exception->getMessage(); }finally{ $result[] = 'finally'; }
+        if ( $first ) : $result[] = 'alternative'; else : $result[] = 'alternative else'; endif;
+        if ($first
+&& str_contains($value, 'first intentionally descriptive condition segment')
+&& str_contains($value, 'second intentionally descriptive condition segment')
+
+          )  {
+
+            $result[] = 'multiline';
+
+        }
+
+        return $result;
+    }
+
     private function combine(mixed ...$values): array
     {
         return $values;
