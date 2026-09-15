@@ -219,6 +219,28 @@ final class ConsumerTest extends TestCase
         );
         $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', '--check', $formatterContractPath]);
 
+        $functionDeclarationContractPath = 'src/FunctionDeclarationLayout.php';
+        $this->copyIntegrationFixture('Formatter/FunctionDeclarationLayoutInput.php', $functionDeclarationContractPath);
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            $functionDeclarationContractPath,
+        ], expectedExit: 1);
+        $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', $functionDeclarationContractPath]);
+        self::assertFileEquals(
+            __DIR__ . '/Fixtures/Formatter/FunctionDeclarationLayoutExpected.php',
+            $this->workspace . '/' . $functionDeclarationContractPath,
+        );
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            $functionDeclarationContractPath,
+        ]);
+
         $this->copyIntegrationFixture('Linter/ArrayStyle.php', 'src/ArrayStyle.php');
         $output = $this->executeCommand([
             PHP_BINARY,
