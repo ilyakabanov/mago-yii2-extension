@@ -12,6 +12,11 @@ function concatenateValues(string $firstValue, string $secondValue,
     return $firstValue . $secondValue . $thirdValue . $fourthValue . $fifthValue;
 }
 
+function normalizeNullableValue(? string $value):? string
+{
+    return $value;
+}
+
 interface FormatterContract
 {
     public function format (string $value): string ;
@@ -19,6 +24,8 @@ interface FormatterContract
 
 final class FunctionDeclarationLayout
 {
+    private ? string $fallback = null;
+
     public function normalize (string $value): string {
         return $value;
     }
@@ -37,5 +44,16 @@ final class FunctionDeclarationLayout
         {
             return $firstValue . $secondValue . $thirdValue . $fourthValue . $fifthValue;
         };
+    }
+
+    public function normalizeNullable(? string $value) :  ? string
+    {
+        $fallback = $this->fallback;
+        $normalizeClosure = function (? string $candidate) use ($fallback) :? string {
+            return $candidate ?? $fallback;
+        };
+        $normalizeArrow = fn(? string $candidate):? string => $candidate ?? $fallback;
+
+        return $normalizeArrow($normalizeClosure($value));
     }
 }
