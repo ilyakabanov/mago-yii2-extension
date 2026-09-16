@@ -11,6 +11,7 @@ use Ilyakabanov\MagoYii2\Linter\Rules\ClosingBraceRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\DisallowAlternativePhpTagsRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\FileHeaderRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\MethodDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\MethodScopeRule;
@@ -51,6 +52,7 @@ final class Yii2Extension
                 new DisallowAlternativePhpTagsRule(),
                 new CastSpacingRule(),
                 new ClosingBraceRule(),
+                new FileHeaderRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );
