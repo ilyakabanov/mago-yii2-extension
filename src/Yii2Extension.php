@@ -7,6 +7,7 @@ namespace Ilyakabanov\MagoYii2;
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
 use Ilyakabanov\MagoYii2\Linter\Rules\ByteOrderMarkRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\DisallowAlternativePhpTagsRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ImportStatementRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\MethodDeclarationRule;
@@ -45,6 +46,7 @@ final class Yii2Extension
                 new MethodDeclarationRule(),
                 new TraitUseDeclarationRule(),
                 new ByteOrderMarkRule(),
+                new DisallowAlternativePhpTagsRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );
