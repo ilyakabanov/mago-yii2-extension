@@ -21,6 +21,8 @@ The custom rules are `yii2/private-property-underscore`, `yii2/else-if-declarati
 
 The formatter preset normalizes class declarations, class instantiations, grouped imports, modifier order, and one-trait-per-import layout instead of duplicating those checks as lint diagnostics.
 
+To match Yii2 Coding Standards, linting and formatting skip `i18n/data/`, `views/errorHandler/`, `requirements/`, and files named `ProfileTarget.php`. Static analysis still includes those files.
+
 All custom rules are diagnostic-only. Rename affected private properties with a symbol-aware tool so declarations, usages, and promoted-property named arguments stay consistent.
 
 ## Identity
