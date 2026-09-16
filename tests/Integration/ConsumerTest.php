@@ -101,6 +101,17 @@ final class ConsumerTest extends TestCase
         ], expectedExit: 1);
         self::assertStringContainsString('yii2/byte-order-mark', $output);
 
+        $this->copyIntegrationFixture('Linter/AlternativePhpTags.php', 'src/AlternativePhpTags.php');
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            '--only',
+            'yii2/disallow-alternative-php-tags',
+            'src/AlternativePhpTags.php',
+        ], expectedExit: 1);
+        self::assertStringContainsString('yii2/disallow-alternative-php-tags', $output);
+
         mkdir($this->workspace . '/src/tests');
         $excludedMethodPath = 'src/tests/AllowedMethodNameTest.php';
         $this->copyIntegrationFixture('Linter/AllowedMethodName.php', $excludedMethodPath);
