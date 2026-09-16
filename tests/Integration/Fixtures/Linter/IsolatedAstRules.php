@@ -17,6 +17,7 @@ final class IsolatedAstRules
         }
 
         $bool = (boolean) $value;
+        $spaced = ( int ) $value;
         $service = new Service();
     }
 
