@@ -7,10 +7,24 @@ command = ["php", "vendor/bin/mago-yii2-worker.php"]
 # Initial Yii2 style defaults, not full yii2-coding-standards parity.
 [formatter]
 preset = "psr-12"
+excludes = [
+    "**/i18n/data/**",
+    "**/views/errorHandler/**",
+    "**/requirements/**",
+    "**/ProfileTarget.php",
+]
 single-quote = true
 space-around-assignment-in-declare = false
 space-within-grouping-parenthesis = false
 expand-use-groups = true
+
+[linter]
+excludes = [
+    "**/i18n/data/**",
+    "**/views/errorHandler/**",
+    "**/requirements/**",
+    "**/ProfileTarget.php",
+]
 
 [linter.rules]
 array-style = { enabled = true, level = "error", style = "short" }

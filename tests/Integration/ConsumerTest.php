@@ -12,6 +12,13 @@ use SplFileInfo;
 
 final class ConsumerTest extends TestCase
 {
+    private const EXCLUDED_STYLE_PATHS = [
+        'src/framework/i18n/data/ArrayStyle.php',
+        'src/framework/views/errorHandler/ArrayStyle.php',
+        'src/framework/requirements/ArrayStyle.php',
+        'src/framework/diagnostics/ProfileTarget.php',
+    ];
+
     /** @var non-empty-string */
     private string $workspace;
 
@@ -20,6 +27,10 @@ final class ConsumerTest extends TestCase
         $this->workspace = sys_get_temp_dir() . '/mago-yii2-consumer-' . bin2hex(random_bytes(8));
         mkdir($this->workspace);
         mkdir($this->workspace . '/src');
+        mkdir($this->workspace . '/src/framework/i18n/data', recursive: true);
+        mkdir($this->workspace . '/src/framework/views/errorHandler', recursive: true);
+        mkdir($this->workspace . '/src/framework/requirements', recursive: true);
+        mkdir($this->workspace . '/src/framework/diagnostics', recursive: true);
     }
 
     protected function tearDown(): void
@@ -196,6 +207,13 @@ final class ConsumerTest extends TestCase
         foreach ($rules as $rule) {
             self::assertStringContainsString($rule, $output);
         }
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            'src/ArrayStyle.php',
+        ], expectedExit: 1);
 
         mkdir($this->workspace . '/web');
         $this->copyIntegrationFixture('Linter/ExcludedEntrypoint.php', 'web/index.php');
@@ -211,6 +229,31 @@ final class ConsumerTest extends TestCase
         ], expectedExit: 1);
         self::assertStringContainsString('class-name', $output);
         self::assertStringNotContainsString('require-namespace', $output);
+
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'lint',
+            '--only',
+            'array-style',
+            ...self::EXCLUDED_STYLE_PATHS,
+        ]);
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            ...self::EXCLUDED_STYLE_PATHS,
+        ]);
+
+        $output = $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'list-files',
+            '--command',
+            'analyzer',
+        ]);
+        self::assertSame([], array_diff(self::EXCLUDED_STYLE_PATHS, explode("\n", trim($output))));
     }
 
     public function testProjectCanOverrideSharedSettings(): void
@@ -427,6 +470,7 @@ final class ConsumerTest extends TestCase
             'mago-overrides.toml',
             'mago-disabled.toml',
             'src/Example.php',
+            ...self::EXCLUDED_STYLE_PATHS,
         ] as $path) {
             self::assertTrue(copy($consumerDirectory . $path, $this->workspace . '/' . $path));
         }
