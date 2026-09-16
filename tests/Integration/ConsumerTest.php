@@ -77,6 +77,7 @@ final class ConsumerTest extends TestCase
         self::assertStringContainsString('yii2/short-form-type-keywords', $output);
         self::assertStringContainsString('yii2/cast-spacing', $output);
         self::assertStringContainsString('yii2/closing-brace', $output);
+        self::assertStringContainsString('yii2/file-header', $output);
         self::assertStringContainsString('yii2/method-scope', $output);
         self::assertStringContainsString('yii2/constant-visibility', $output);
         self::assertStringContainsString('yii2/import-statement', $output);
@@ -237,6 +238,22 @@ final class ConsumerTest extends TestCase
             $this->workspace . '/' . $formatterContractPath,
         );
         $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', '--check', $formatterContractPath]);
+
+        $fileHeaderContractPath = 'src/FileHeaderLayout.php';
+        $this->copyIntegrationFixture('Formatter/FileHeaderLayoutInput.php', $fileHeaderContractPath);
+        $this->executeCommand([
+            PHP_BINARY,
+            'vendor/bin/mago',
+            'format',
+            '--check',
+            $fileHeaderContractPath,
+        ], expectedExit: 1);
+        $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', $fileHeaderContractPath]);
+        self::assertFileEquals(
+            __DIR__ . '/Fixtures/Formatter/FileHeaderLayoutExpected.php',
+            $this->workspace . '/' . $fileHeaderContractPath,
+        );
+        $this->executeCommand([PHP_BINARY, 'vendor/bin/mago', 'format', '--check', $fileHeaderContractPath]);
 
         $functionDeclarationContractPath = 'src/FunctionDeclarationLayout.php';
         $this->copyIntegrationFixture('Formatter/FunctionDeclarationLayoutInput.php', $functionDeclarationContractPath);
