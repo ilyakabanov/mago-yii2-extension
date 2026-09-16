@@ -75,6 +75,7 @@ final class ConsumerTest extends TestCase
         ], expectedExit: 1);
         self::assertStringContainsString('yii2/else-if-declaration', $output);
         self::assertStringContainsString('yii2/short-form-type-keywords', $output);
+        self::assertStringContainsString('yii2/cast-spacing', $output);
         self::assertStringContainsString('yii2/method-scope', $output);
         self::assertStringContainsString('yii2/constant-visibility', $output);
         self::assertStringContainsString('yii2/import-statement', $output);
