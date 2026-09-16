@@ -7,6 +7,7 @@ namespace Ilyakabanov\MagoYii2;
 use Ilyakabanov\MagoYii2\Analyzer\Yii2Plugin;
 use Ilyakabanov\MagoYii2\Linter\Rules\ByteOrderMarkRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\CastSpacingRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ClosingBraceRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\DisallowAlternativePhpTagsRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
@@ -49,6 +50,7 @@ final class Yii2Extension
                 new ByteOrderMarkRule(),
                 new DisallowAlternativePhpTagsRule(),
                 new CastSpacingRule(),
+                new ClosingBraceRule(),
             ],
             analyzerPlugins: [new Yii2Plugin()],
         );

@@ -24,4 +24,4 @@ final class IsolatedAstRules
     function missingVisibility(): void
     {
     }
-}
+} // class comment

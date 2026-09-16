@@ -133,4 +133,4 @@ final  class FormatterCoveredRules implements FirstContract, SecondContract {
     {
         return $values;
     }
-}
+} echo 'formatter-covered';

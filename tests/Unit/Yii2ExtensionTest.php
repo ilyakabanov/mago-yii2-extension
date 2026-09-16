@@ -6,6 +6,7 @@ namespace Ilyakabanov\MagoYii2\Tests;
 
 use Ilyakabanov\MagoYii2\Linter\Rules\ByteOrderMarkRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\CastSpacingRule;
+use Ilyakabanov\MagoYii2\Linter\Rules\ClosingBraceRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ConstantVisibilityRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\DisallowAlternativePhpTagsRule;
 use Ilyakabanov\MagoYii2\Linter\Rules\ElseIfDeclarationRule;
@@ -28,7 +29,7 @@ final class Yii2ExtensionTest extends TestCase
         self::assertSame('yii2/mago-extension', $extension->identifier);
         self::assertSame('Mago Yii2 Extension', $extension->name);
         self::assertSame('0.1.0', $extension->version);
-        self::assertCount(12, $extension->linterRules);
+        self::assertCount(13, $extension->linterRules);
         self::assertInstanceOf(PrivatePropertyUnderscoreRule::class, $extension->linterRules[0]);
         self::assertInstanceOf(ElseIfDeclarationRule::class, $extension->linterRules[1]);
         self::assertInstanceOf(ShortFormTypeKeywordsRule::class, $extension->linterRules[2]);
@@ -41,6 +42,7 @@ final class Yii2ExtensionTest extends TestCase
         self::assertInstanceOf(ByteOrderMarkRule::class, $extension->linterRules[9]);
         self::assertInstanceOf(DisallowAlternativePhpTagsRule::class, $extension->linterRules[10]);
         self::assertInstanceOf(CastSpacingRule::class, $extension->linterRules[11]);
+        self::assertInstanceOf(ClosingBraceRule::class, $extension->linterRules[12]);
         self::assertCount(1, $extension->analyzerPlugins);
         self::assertNull($extension->workerReducer);
     }
