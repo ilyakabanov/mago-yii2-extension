@@ -24,5 +24,8 @@ test-corpus:
     {{mago}} --workspace tests/corpus extension validate
     {{mago}} --workspace tests/corpus analyze --reporting-format count
 
+audit:
+    php tests/Audit/run.php
+
 check: validate format-check test lint analyze test-corpus
 
