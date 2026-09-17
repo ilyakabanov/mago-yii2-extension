@@ -117,7 +117,10 @@ just test
 just lint
 just analyze
 just test-corpus
+just audit
 ```
+
+`just audit` provisions PHPCS 4.0.4, Yii2 Coding Standards 3.0.2, and Mago 1.47.1 under `/tmp`, then compares the observed result with [`tests/Audit/baseline.json`](tests/Audit/baseline.json). Recorded `different` and `unsupported` diagnostics do not fail the command; only a new, removed, or changed result does. The audit does not modify production rules or the shared preset.
 
 The example application in [`tests/consumer/`](tests/consumer/) contains a Composer manifest, a clean PHP example, and three Mago configurations:
 

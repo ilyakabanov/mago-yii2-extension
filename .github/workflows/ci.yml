@@ -36,3 +36,24 @@ jobs:
       - name: Check
         run: just check
 
+  audit:
+    name: Differential audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+
+      - name: Audit Yii2 Coding Standards compatibility
+        run: just audit
+
