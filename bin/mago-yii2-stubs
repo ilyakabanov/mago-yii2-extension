@@ -1,0 +1,49 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use yii2\extensions\mago\ServiceMap;
+use yii2\extensions\mago\StubGenerator;
+
+if (count($argv) !== 3) {
+    fwrite(STDERR, "Usage: php bin/mago-yii2-stubs config.php output.php\n");
+    exit(1);
+}
+
+// Composer's bin proxy points to the consumer's autoloader, including custom vendor directories.
+$autoload = $GLOBALS['_composer_autoload_path'] ?? null;
+if (!is_string($autoload) || !is_file($autoload)) {
+    $directory = __DIR__;
+    $autoload = null;
+    while (true) {
+        $candidate = $directory . '/vendor/autoload.php';
+        if (is_file($candidate)) {
+            $autoload = $candidate;
+            break;
+        }
+        $parent = dirname($directory);
+        if ($parent === $directory) {
+            break;
+        }
+        $directory = $parent;
+    }
+}
+
+if ($autoload === null) {
+    fwrite(STDERR, "Composer autoloader not found. Install the project's dependencies first.\n");
+    exit(1);
+}
+require $autoload;
+
+try {
+    $stub = StubGenerator::generate(new ServiceMap($argv[1]));
+    if (file_put_contents($argv[2], $stub) === false) {
+        throw new RuntimeException('Cannot write analysis stub to ' . $argv[2]);
+    }
+} catch (Throwable $error) {
+    fwrite(STDERR, $error->getMessage() . "\n");
+    exit(1);
+}
+
+fwrite(STDOUT, 'Generated analysis stub: ' . $argv[2] . "\n");

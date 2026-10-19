@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+use yii\web\View;
+use yii2\extensions\phpstan\tests\support\stub\{
+    BehaviorOne,
+    BehaviorTwo,
+    ModelWithConflictingProperty,
+    ModelWithMultipleBehaviors,
+    MyActiveRecord,
+    MyComponent,
+    NestedSetsBehavior,
+    NestedSetsModel,
+    SlugBehavior,
+    User,
+};
+
+return [
+    'params' => [
+        'turnstile.siteKey' => '',
+        'adminEmail' => 'admin@example.com',
+        'maxItems' => 100,
+        'debugMode' => true,
+        'ratio' => 1.5,
+        'nullableParam' => null,
+        'nested' => [
+            'key1' => 'value1',
+            'key2' => 42,
+        ],
+        'tags' => ['php', 'yii2'],
+    ],
+    'behaviors' => [
+        ModelWithConflictingProperty::class => [
+            NestedSetsBehavior::class,
+        ],
+        ModelWithMultipleBehaviors::class => [
+            NestedSetsBehavior::class,
+            SlugBehavior::class,
+        ],
+        NestedSetsModel::class => [
+            NestedSetsBehavior::class,
+        ],
+        MyComponent::class => [
+            BehaviorOne::class,
+            BehaviorTwo::class,
+        ],
+        'OtherComponent' => [
+            'BehaviorThree',
+        ],
+    ],
+    'components' => [
+        'assetManager' => [
+            'basePath' => '@runtime/assets',
+        ],
+        'customComponent' => [
+            'class' => MyActiveRecord::class,
+        ],
+        'customInitializedComponent' => new MyActiveRecord(),
+        'user' => [
+            'class' => 'yii\web\User',
+            'identityClass' => User::class,
+        ],
+        'view' => [
+            'class' => View::class,
+        ],
+    ],
+    'container' => [
+        'definitions' => [
+            'closure' => static fn(): SplStack => new SplStack(),
+            MyActiveRecord::class => [
+                'flag' => 'foo',
+            ],
+            'nested-service-class' => [
+                [
+                    'class' => SplFileInfo::class,
+                ],
+            ],
+            'service' => [
+                'class' => SplObjectStorage::class,
+            ],
+        ],
+        'singletons' => [
+            'singleton-closure' => static fn(): SplStack => new SplStack(),
+            'singleton-nested-service-class' => [
+                [
+                    'class' => SplFileInfo::class,
+                ],
+            ],
+            'singleton-service' => [
+                'class' => SplObjectStorage::class,
+            ],
+            'singleton-string' => MyActiveRecord::class,
+        ],
+    ],
+];

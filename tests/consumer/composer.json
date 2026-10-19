@@ -1,0 +1,12 @@
+{
+    "name": "yii2-mago/consumer-fixture",
+    "type": "project",
+    "require-dev": {
+        "yii2/mago-extension": "dev-main",
+        "yiisoft/yii2": "~2.0.55",
+        "yidas/yii2-composer-bower-skip": "^2.0"
+    },
+    "repositories": [{"type": "path", "url": "../..", "options": {"symlink": true, "versions": {"yii2/mago-extension": "dev-main"}}}],
+    "config": {"allow-plugins": {"yiisoft/yii2-composer": true}},
+    "prefer-stable": true
+}

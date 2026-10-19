@@ -1,0 +1,34 @@
+{
+    "name": "yii2/mago-extension",
+    "description": "Yii2 type inference for the Mago analyzer",
+    "type": "library",
+    "license": "BSD-3-Clause",
+    "keywords": ["yii2", "mago", "static-analysis"],
+    "require": {
+        "php": ">=8.3",
+        "carthage-software/mago": "^1.57.0",
+        "yiisoft/yii2": "~2.0.55 || ^22.0@dev"
+    },
+    "require-dev": {
+        "nikic/php-parser": "^5.4",
+        "phpunit/phpunit": "^12.0",
+        "yidas/yii2-composer-bower-skip": "^2.0"
+    },
+    "autoload": {"psr-4": {"yii2\\extensions\\mago\\": "src/"}},
+    "autoload-dev": {"psr-4": {"yii2\\extensions\\mago\\tests\\": "tests/"}},
+    "bin": ["bin/mago-yii2-stubs"],
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {"yiisoft/yii2-composer": true}
+    },
+    "scripts": {
+        "test": ["@test:unit", "@test:corpus"],
+        "test:unit": "phpunit",
+        "test:corpus": "php tests/run-corpus.php",
+        "test:parity": "php tests/run-parity.php",
+        "test:parity-harness": "php tests/run-parity.php --self-test",
+        "format:check": "mago fmt --check",
+        "analyze": "mago analyze"
+    }
+}

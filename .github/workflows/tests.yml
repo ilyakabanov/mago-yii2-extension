@@ -1,0 +1,26 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.3', '8.5']
+        yii: ['2.0.55', '22.0.x-dev']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, intl
+          coverage: none
+      - run: composer update --with=yiisoft/yii2:${{ matrix.yii }} --no-interaction --prefer-dist
+      - run: composer validate --strict
+      - run: composer test
+      - run: composer analyze
+      - run: composer format:check
+      - run: composer test:parity-harness
+      - name: Original inference parity (migration remains incomplete)
+        continue-on-error: true
+        run: composer test:parity

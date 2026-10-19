@@ -1,0 +1,15 @@
+php-version = "8.3"
+
+[source]
+paths = ["src", "bin"]
+includes = ["vendor"]
+
+[analyzer]
+find-unused-definitions = false
+find-unused-expressions = false
+ignore = ["mixed-assignment"]
+
+[formatter]
+print-width = 120
+tab-width = 4
+use-tabs = false

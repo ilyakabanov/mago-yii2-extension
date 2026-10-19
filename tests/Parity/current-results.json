@@ -1,0 +1,176 @@
+{
+  "success": false,
+  "reports": [
+    {
+      "profile": "web",
+      "passed": 526,
+      "expected": 530,
+      "comparisons": 530,
+      "infrastructureFailure": false,
+      "exitCode": 1,
+      "mismatches": [
+        {
+          "code": "yii2/parity/missing-type",
+          "message": "Parity comparison is missing inferred argument types.",
+          "file": "Parity/fixtures/web/data/type/ActiveRecordQueryDynamicStaticMethodNameType.php",
+          "line": 19
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\db\\ActiveQuery<array{'id': int, 'value': float}>; actual yii\\db\\ActiveQuery<array{'id': int, 'value': T}> (assertType).",
+          "file": "Parity/fixtures/web/data/type/ActiveQueryDynamicMethodReturnType.php",
+          "line": 347
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected float; actual T (assertType).",
+          "file": "Parity/fixtures/web/data/type/ActiveRecordGetAttributeDynamicMethodReturnType.php",
+          "line": 117
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii2\\extensions\\phpstan\\tests\\support\\stub\\Invoice|null; actual static(yii2\\extensions\\phpstan\\tests\\support\\stub\\Invoice)|null (assertType).",
+          "file": "Parity/fixtures/web/data/type/ActiveRecordQueryDynamicStaticMethodReturnType.php",
+          "line": 178
+        }
+      ],
+      "analyzerErrors": []
+    },
+    {
+      "profile": "console",
+      "passed": 29,
+      "expected": 29,
+      "comparisons": 29,
+      "infrastructureFailure": false,
+      "exitCode": 0,
+      "mismatches": [],
+      "analyzerErrors": []
+    },
+    {
+      "profile": "custom",
+      "passed": 5,
+      "expected": 5,
+      "comparisons": 5,
+      "infrastructureFailure": false,
+      "exitCode": 0,
+      "mismatches": [],
+      "analyzerErrors": []
+    },
+    {
+      "profile": "params",
+      "passed": 34,
+      "expected": 39,
+      "comparisons": 39,
+      "infrastructureFailure": false,
+      "exitCode": 1,
+      "mismatches": [
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\console\\Application; actual yii\\web\\Application<yii\\web\\IdentityInterface> (assertType).",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 27
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\base\\Application; actual yii\\web\\Application<yii\\web\\IdentityInterface> (assertType).",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 34
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\web\\Application<yii\\web\\IdentityInterface>|null; actual yii\\web\\Application<yii\\web\\IdentityInterface> (assertType).",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 41
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\web\\Application<yii\\web\\IdentityInterface>|yii\\console\\Application; actual yii\\web\\Application<yii\\web\\IdentityInterface> (assertType).",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 79
+        },
+        {
+          "code": "yii2/parity/type",
+          "message": "Expected yii\\console\\Application; actual never (assertType).",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 82
+        }
+      ],
+      "analyzerErrors": [
+        {
+          "code": "incompatible-property-type",
+          "message": "Property `yii2\\extensions\\phpstan\\tests\\web\\data\\type\\ApplicationParamsOwnParamsModule::$params` has an incompatible type declaration from docblock.",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsOwnParamsModule.php",
+          "line": 16
+        },
+        {
+          "code": "invalid-property-assignment-value",
+          "message": "Invalid property assignment value",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 25
+        },
+        {
+          "code": "property-type-coercion",
+          "message": "Property type coercion",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 32
+        },
+        {
+          "code": "invalid-property-assignment-value",
+          "message": "Invalid property assignment value",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 39
+        },
+        {
+          "code": "invalid-property-assignment-value",
+          "message": "Invalid property assignment value",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 77
+        },
+        {
+          "code": "no-value",
+          "message": "Argument #1 passed to function `Parity\\assertType` has type `never`, meaning it cannot produce a value.",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 82
+        },
+        {
+          "code": "impossible-type-comparison",
+          "message": "Impossible type assertion: `Yii::$app->params['adminEmail']` of type `string` can never be `int`.",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 88
+        },
+        {
+          "code": "no-value",
+          "message": "Argument #1 passed to function `Parity\\assertType` has type `never`, meaning it cannot produce a value.",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 89
+        },
+        {
+          "code": "no-value",
+          "message": "Argument #1 passed to function `Parity\\assertType` has type `never`, meaning it cannot produce a value.",
+          "file": "Parity/fixtures/params/web/data/type/ApplicationParamsType.php",
+          "line": 112
+        }
+      ]
+    },
+    {
+      "profile": "awkward",
+      "passed": 17,
+      "expected": 17,
+      "comparisons": 17,
+      "infrastructureFailure": false,
+      "exitCode": 0,
+      "mismatches": [],
+      "analyzerErrors": []
+    },
+    {
+      "profile": "definition",
+      "passed": 23,
+      "expected": 23,
+      "comparisons": 23,
+      "infrastructureFailure": false,
+      "exitCode": 0,
+      "mismatches": [],
+      "analyzerErrors": []
+    }
+  ]
+}

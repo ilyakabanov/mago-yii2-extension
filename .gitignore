@@ -1,0 +1,7 @@
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/.mago-cache/
+/runtime/
+/tests/consumer/vendor/
+/tests/consumer/composer.lock

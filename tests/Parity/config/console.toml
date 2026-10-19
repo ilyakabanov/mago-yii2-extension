@@ -1,0 +1,13 @@
+php-version = "8.3"
+
+[source]
+paths = ["Parity/fixtures/console"]
+includes = ["Parity/functions.php", "Parity/expected.php", "reference/support/stub", "../vendor/yiisoft/yii2", "../vendor/phpunit/phpunit/src/Framework/Attributes"]
+patches = ["Parity/stubs/console/Yii.php"]
+
+[analyzer]
+find-unused-definitions = false
+find-unused-expressions = false
+
+[extension-hosts.yii2]
+command = ["php", "../../parity-worker.php"]

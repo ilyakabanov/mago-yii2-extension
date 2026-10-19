@@ -1,0 +1,117 @@
+<?php
+
+declare(strict_types=1);
+
+namespace yii2\extensions\phpstan\tests;
+
+use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use yii2\extensions\phpstan\ServiceMap;
+use yii2\extensions\phpstan\tests\support\stub\{BehaviorOne, BehaviorTwo, MyComponent};
+
+/**
+ * Test suite for {@see ServiceMap} behavior resolution and validation logic.
+ *
+ * Verifies correct mapping and retrieval of behaviors for component classes from configuration files, ensuring robust
+ * error handling for invalid or unsupported behavior structures.
+ *
+ * The tests cover scenarios including valid and invalid class names, behavior extraction, and exception handling for
+ * misconfigured or malformed behavior arrays.
+ */
+final class ServiceMapBehaviorTest extends TestCase
+{
+    /**
+     * Base path for configuration files used in tests.
+     */
+    private const BASE_PATH = __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR;
+
+    public function testReturnBehaviorsWhenValidClassIsClassString(): void
+    {
+        $serviceMap = new ServiceMap(self::BASE_PATH . 'phpstan-config.php');
+
+        $behaviors = $serviceMap->getBehaviorsByClassName(MyComponent::class);
+
+        self::assertSame(
+            [
+                BehaviorOne::class,
+                BehaviorTwo::class,
+            ],
+            $behaviors,
+            'ServiceMap should return behaviors for MyComponent class.',
+        );
+    }
+
+    public function testReturnBehaviorsWhenValidClassIsString(): void
+    {
+        $serviceMap = new ServiceMap(self::BASE_PATH . 'phpstan-config.php');
+
+        $behaviors = $serviceMap->getBehaviorsByClassName('yii2\extensions\phpstan\tests\support\stub\MyComponent');
+
+        self::assertSame(
+            [
+                'yii2\extensions\phpstan\tests\support\stub\BehaviorOne',
+                'yii2\extensions\phpstan\tests\support\stub\BehaviorTwo',
+            ],
+            $behaviors,
+            'ServiceMap should return behaviors for MyComponent class.',
+        );
+    }
+
+    public function testReturnEmptyArrayWhenClassHasNotBehaviors(): void
+    {
+        $serviceMap = new ServiceMap(self::BASE_PATH . 'phpstan-config.php');
+
+        $behaviors = $serviceMap->getBehaviorsByClassName('NonExistentClass');
+
+        self::assertSame(
+            [],
+            $behaviors,
+            'ServiceMap should return empty array for class with no behaviors.',
+        );
+    }
+
+    public function testReturnEmptyArrayWhenNotBehaviorsConfigured(): void
+    {
+        $serviceMap = new ServiceMap(self::BASE_PATH . 'phpstan-config.php');
+
+        $behaviors = $serviceMap->getBehaviorsByClassName('AnyClass');
+
+        self::assertSame(
+            [],
+            $behaviors,
+            'ServiceMap should return empty array when no behaviors are configured.',
+        );
+    }
+
+    public function testThrowRuntimeExceptionWhenBehaviorDefinitionNotArray(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            "Behavior definition for 'MyComponent' must be an array.",
+        );
+
+        new ServiceMap(self::BASE_PATH . 'behaviors-unsupported-definition-not-array.php');
+    }
+
+    public function testThrowRuntimeExceptionWhenBehaviorIdNotString(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            "'Behavior class': 'ID' must be a 'string', got 'integer'.",
+        );
+
+        new ServiceMap(self::BASE_PATH . 'behaviors-unsupported-id-not-string.php');
+    }
+
+    public function testThrowRuntimeExceptionWhenBehaviorsNotArray(): void
+    {
+        $configPath = self::BASE_PATH . 'behaviors-unsupported-is-not-array.php';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            "Configuration file '{$configPath}' must contain a valid 'behaviors' 'array'.",
+        );
+
+        new ServiceMap($configPath);
+    }
+}

@@ -1,0 +1,13 @@
+php-version = "8.3"
+
+[source]
+paths = ["static-src"]
+includes = ["src/Models.php", "../../vendor/yiisoft/yii2", "../../vendor/carthage-software/mago/composer/src/functions.php"]
+patches = ["stubs/Yii.php"]
+
+[analyzer]
+find-unused-definitions = false
+find-unused-expressions = false
+
+[extension-hosts.yii2]
+command = ["php", "worker.php"]
