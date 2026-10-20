@@ -7,7 +7,7 @@
 - `bin/mago-yii2-stubs` exposes patch generation through Composer.
 - `tests/Unit/` contains PHPUnit tests; `tests/corpus/` exercises a real Mago worker; `tests/consumer/` verifies Composer integration.
 - `tests/reference/` preserves the original PHPStan test snapshot. `tests/Parity/` contains adapted fixtures, their generator, and comparison metadata.
-- `docs/` documents testing and compatibility; `.github/workflows/tests.yml` defines the PHP/Yii matrix.
+- `docs/` documents testing and compatibility; `.github/workflows/ci.yml` defines the PHP/Yii matrix.
 
 ## Build, Test, and Development Commands
 

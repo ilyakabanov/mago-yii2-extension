@@ -17,6 +17,7 @@ use Mago\Sdk\Analyzer\Type\ArrayKeyKind;
 use Mago\Sdk\Analyzer\Type\AtomicType;
 use Mago\Sdk\Analyzer\Type\ClassLikeStringType;
 use Mago\Sdk\Analyzer\Type\GenericParameterType;
+use Mago\Sdk\Analyzer\Type\GenericParentKind;
 use Mago\Sdk\Analyzer\Type\IterableType;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 use Mago\Sdk\Analyzer\Type\ListType;
@@ -131,13 +132,20 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         }
 
         if ($method === 'asarray') {
+            if (
+                strcasecmp($query->name, self::QUERY) !== 0
+                && ($query->parameters ?? []) !== []
+                && $this->queryRowType($query, $context) === null
+            ) {
+                return null;
+            }
             foreach ($call->arguments as $argument) {
                 if ($argument->unpacked || $argument->placeholder) {
                     if ($argument->unpacked) {
                         $value = TypeTools::booleanArgument($argument);
                         if ($value !== null) {
                             return $value
-                                ? $this->queryWithRow($query, Type::array(Type::string(), Type::mixed()))
+                                ? $this->queryWithRow($query, Type::array(Type::string(), Type::mixed()), $context)
                                 : $this->plainQueryReceiver($receiver, $query);
                         }
                     }
@@ -148,12 +156,12 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             if ($value?->type?->getLiteralBool() === false) {
                 return $this->plainQueryReceiver($receiver, $query);
             }
-            $row = $this->queryRowType($query, $context->codebase);
+            $row = $this->queryRowType($query, $context);
             $arrayRow = $this->arrayRowType($row, $context->codebase);
             if ($value !== null && $value->type?->getLiteralBool() !== true) {
                 $arrayRow = Type::union($row ?? Type::mixed(), $arrayRow);
             }
-            return $this->queryWithRow($query, $arrayRow);
+            return $this->queryWithRow($query, $arrayRow, $context);
         }
 
         if (in_array($method, self::FLUENT_METHODS, true)) {
@@ -170,7 +178,7 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             return null;
         }
 
-        $row = $this->queryRowType($query, $context->codebase);
+        $row = $this->queryRowType($query, $context);
         if ($row === null) {
             if ($method === 'all') {
                 $native = $context->codebase->getDeclaringMethod($query->name, 'all')?->returnType?->type;
@@ -196,14 +204,20 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             return null;
         }
 
-        // A Gii override with an already precise return type remains authoritative.
-        if (
-            ($query->parameters ?? []) === []
-            && ($query->intersections ?? []) === []
-            && in_array($method, ['one', 'all'], true)
-        ) {
+        // Custom overrides with precise row contracts remain authoritative.
+        if (in_array($method, ['one', 'all'], true)) {
             $metadata = $context->codebase->getDeclaringMethod($query->name, $method);
             $native = $metadata?->returnType?->type;
+            $owner = $metadata?->identifier->class;
+            if (
+                $native !== null
+                && $owner !== null
+                && strcasecmp($owner, self::QUERY) !== 0
+                && $this->containsOnlyTemplateRows($native, $method, $owner)
+            ) {
+                // Only the host can substitute a custom override's declaring-owner templates.
+                return null;
+            }
             if ($native !== null && $this->containsOnlyModelRows($native, $method, $row, $context->codebase)) {
                 return $native;
             }
@@ -238,11 +252,18 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
                 $model->remappedParameters,
             ),
         );
-        if ($method === 'findone') {
-            return Type::union($modelType, Type::null());
-        }
-        if ($method === 'findall') {
-            return Type::array(self::arrayKey(), $modelType);
+        if (in_array($method, ['findone', 'findall'], true)) {
+            $metadata = $context->codebase->getDeclaringMethod($model->name, $method);
+            $owner = $metadata?->identifier->class;
+            if (
+                $owner !== null
+                && !in_array(strtolower($owner), ['yii\db\activerecord', 'yii\db\baseactiverecord'], true)
+            ) {
+                return null;
+            }
+            return $method === 'findone'
+                ? Type::union($modelType, Type::null())
+                : Type::array(self::arrayKey(), $modelType);
         }
         $metadata = $context->codebase->getDeclaringMethod($model->name, $method);
         $declared = $metadata?->returnType?->type;
@@ -256,7 +277,10 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         if (strcasecmp($query->name, self::QUERY) === 0) {
             return Type::namedObject(self::QUERY, $modelType);
         }
-        $bound = $this->queryRowType($query, $context->codebase);
+        $bound = $this->queryRowType($query, $context);
+        if ($bound === null && ($query->parameters ?? []) !== []) {
+            return null;
+        }
         if ($bound !== null && !$this->isUnboundRecord($bound)) {
             $boundObject = $this->singleNamedObject($bound);
             if (
@@ -264,9 +288,9 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
                 && $boundObject->static
                 && !$model->static
                 && strcasecmp($model->name, $boundObject->name) === 0
-                && ($query->parameters ?? []) !== []
+                && $this->hasSingleRowTemplate($query, $context)
             ) {
-                return Type::namedObject($query->name, $modelType);
+                return $this->queryWithRow($query, $modelType, $context);
             }
             if (
                 $boundObject === null
@@ -289,8 +313,9 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         );
     }
 
-    private function queryRowType(NamedObjectType $query, Codebase $codebase): ?Type
+    private function queryRowType(NamedObjectType $query, ReturnTypeProviderContext $context): ?Type
     {
+        $codebase = $context->codebase;
         foreach ($query->intersections ?? [] as $intersection) {
             if (
                 $intersection instanceof NamedObjectType
@@ -300,11 +325,11 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
                 return $intersection->parameters[0];
             }
         }
-        if (isset($query->parameters[0]) && !$this->isUnboundRecord($query->parameters[0])) {
-            return $query->parameters[0];
-        }
         if (strcasecmp($query->name, self::QUERY) === 0) {
             return $query->parameters[0] ?? null;
+        }
+        if (($query->parameters ?? []) !== []) {
+            return $this->hasSingleRowTemplate($query, $context) ? $query->parameters[0] ?? null : null;
         }
         $class = $codebase->getClassLike($query->name);
         if ($class === null || $class->templates !== [] || !$this->isClass($query->name, self::QUERY, $codebase)) {
@@ -535,9 +560,33 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         );
     }
 
-    private function queryWithRow(NamedObjectType $query, Type $row): Type
+    private function hasSingleRowTemplate(NamedObjectType $query, ReturnTypeProviderContext $context): bool
     {
-        if (strcasecmp($query->name, self::QUERY) === 0 || ($query->parameters ?? []) !== []) {
+        // shortcut: multi-template queries keep native inference until their row positions can be validated.
+        $class = $context->codebase->getClassLike($query->name);
+        if (count($query->parameters ?? []) !== 1 || $class === null || count($class->templates) !== 1) {
+            return false;
+        }
+        $template = $class->templates[0];
+        if (
+            $template->definingEntity->kind !== GenericParentKind::ClassLike
+            || strcasecmp($template->definingEntity->name, $query->name) !== 0
+        ) {
+            return false;
+        }
+        $symbol = Type::fromAtomic(
+            new GenericParameterType($template->name, $template->constraint, $template->definingEntity, null),
+        );
+        // Concrete rows can coincide with an unused template's bound; compare the symbolic binding instead.
+        return $context->types->isContainedBy(
+            Type::namedObject($query->name, $symbol),
+            Type::namedObject(self::QUERY, $symbol),
+        );
+    }
+
+    private function queryWithRow(NamedObjectType $query, Type $row, ReturnTypeProviderContext $context): Type
+    {
+        if (strcasecmp($query->name, self::QUERY) === 0 || $this->hasSingleRowTemplate($query, $context)) {
             return Type::namedObject($query->name, $row);
         }
         return Type::namedObject(self::QUERY, $row);
@@ -599,6 +648,31 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             }
             if (!$atomic instanceof NamedObjectType || strcasecmp($atomic->name, self::RECORD) !== 0) {
                 return false;
+            }
+        }
+        return true;
+    }
+
+    private function containsOnlyTemplateRows(Type $type, string $method, string $owner): bool
+    {
+        foreach ($type->atomicTypes as $atomic) {
+            if ($method === 'all') {
+                $value = match (true) {
+                    $atomic instanceof ListType => $atomic->elementType,
+                    $atomic instanceof KeyedArrayType => $atomic->valueType,
+                    default => null,
+                };
+                if ($value === null || !$this->containsOnlyTemplateRows($value, 'one', $owner)) {
+                    return false;
+                }
+            } elseif (!$this->isNull($atomic)) {
+                if (
+                    !$atomic instanceof GenericParameterType
+                    || $atomic->definingEntity->kind !== GenericParentKind::ClassLike
+                    || strcasecmp($atomic->definingEntity->name, $owner) !== 0
+                ) {
+                    return false;
+                }
             }
         }
         return true;

@@ -2,7 +2,7 @@
 
 A Composer development dependency that teaches Mago about Yii2 application configuration, DI services, behaviors and ActiveRecord queries. It uses the PHP SDK and an external worker; PHPStan is not a runtime dependency.
 
-The package targets PHP 8.3+, Mago 1.57+, Yii 2.0.55 and Yii 22. The migration is not complete: **634 of 643 original type assertions pass on Mago 1.57.0**. The remaining cases are recorded in [the compatibility report](docs/compatibility.md). The focused integration corpus and package unit tests pass.
+The package targets PHP 8.3+, Mago 1.58.2+, Yii 2.0.55 and Yii 22. The migration is not complete: **634 of 643 original type assertions pass on Mago 1.58.2**, unchanged from 1.57.0. The remaining cases are recorded in [the compatibility report](docs/compatibility.md). The focused integration corpus and package unit tests pass.
 
 ## Install from this checkout
 

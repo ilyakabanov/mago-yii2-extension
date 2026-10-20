@@ -6,7 +6,7 @@
     "keywords": ["yii2", "mago", "static-analysis"],
     "require": {
         "php": ">=8.3",
-        "carthage-software/mago": "^1.57.0",
+        "carthage-software/mago": "^1.58.2",
         "yiisoft/yii2": "~2.0.55 || ^22.0@dev"
     },
     "require-dev": {

@@ -108,6 +108,30 @@ final class AttributeProviderTest extends TestCase
         self::assertNull(PropertyResolver::magic($context->codebase, 'app\\Draft', 'computed')?->writeType);
     }
 
+    public function testGetAttributeDoesNotInvokeVirtualGetters(): void
+    {
+        $record = new class extends \yii\db\ActiveRecord {
+            public int $getterCalls = 0;
+
+            public function attributes(): array
+            {
+                return [];
+            }
+
+            public function getLabel(): string
+            {
+                ++$this->getterCalls;
+
+                return 'visible';
+            }
+        };
+
+        self::assertSame('visible', $record->label);
+        self::assertSame(1, $record->getterCalls);
+        self::assertNull($record->getAttribute('label'));
+        self::assertSame(1, $record->getterCalls);
+    }
+
     public function testFrameworkVirtualPropertiesAreNotAttributes(): void
     {
         $context = new AnalyzerContext();

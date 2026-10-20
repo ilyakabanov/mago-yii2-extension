@@ -76,17 +76,18 @@ final class BehaviorMethodProvider implements MethodReturnTypeProvider, Callable
     private function findMethod(Codebase $codebase, string $class, string $name): ?FunctionLikeMetadata
     {
         $owner = $codebase->getClassLike($class);
-        if ($owner === null || in_array(strtolower($name), array_map('strtolower', $owner->methods), true)) {
+        if ($owner === null) {
+            return null;
+        }
+
+        // Declaring lookup includes inherited and PHPDoc methods, unlike the class's own method list.
+        $ownerMethod = $codebase->getDeclaringMethod($class, $name);
+        if ($ownerMethod !== null && !$ownerMethod->flags->contains(MetadataFlags::MAGIC_METHOD)) {
             return null;
         }
 
         foreach ($this->map->getBehaviorsByClassName($class) as $behavior) {
-            $metadata = $codebase->getClassLike($behavior);
-            if ($metadata === null || !in_array(strtolower($name), array_map('strtolower', $metadata->methods), true)) {
-                continue;
-            }
-
-            $method = $codebase->getMethod($behavior, $name);
+            $method = $codebase->getDeclaringMethod($behavior, $name);
             if ($method !== null && $method->visibility === Visibility::Public) {
                 return $method;
             }

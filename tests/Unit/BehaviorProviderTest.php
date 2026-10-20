@@ -22,6 +22,7 @@ final class BehaviorProviderTest extends TestCase
         $map = new ServiceMap(__DIR__ . '/../fixtures/providers/behaviors.php');
         $context = new AnalyzerContext();
         $context->addClass('app\\Model', ['yii\\base\\Component']);
+        $context->addMethod('app\\Model', 'audit', null);
         $context->addClass('app\\AuditBehavior', magicProperties: ['label'], methods: ['audit']);
         $context->addMagicProperty('app\\AuditBehavior', 'label', Type::string(), true);
         $context->addMethod('app\\AuditBehavior', 'audit', Type::bool());
@@ -80,6 +81,7 @@ final class BehaviorProviderTest extends TestCase
     {
         $context = new AnalyzerContext();
         $context->addClass('app\\Model', ['yii\\base\\Component']);
+        $context->addMethod('app\\Model', 'audit', null);
         $context->addClass('app\\AuditBehavior', methods: ['getLabel', 'audit']);
         $context->addMethod('app\\AuditBehavior', 'getLabel', Type::string());
         $parameter = new ParameterMetadata(
@@ -113,6 +115,8 @@ final class BehaviorProviderTest extends TestCase
     {
         $context = new AnalyzerContext();
         $context->addClass('app\\Model', ['yii\\base\\Component'], methods: ['audit'], properties: ['label']);
+        $context->addMethod('app\\Model', 'audit', Type::int());
+        $context->addMethod('app\\Model', 'staticAudit', null);
         $context->addClass('app\\AuditBehavior', magicProperties: ['label'], methods: ['audit', 'staticAudit']);
         $context->addMagicProperty('app\\AuditBehavior', 'label', Type::string());
         $context->addMethod('app\\AuditBehavior', 'audit', Type::bool());

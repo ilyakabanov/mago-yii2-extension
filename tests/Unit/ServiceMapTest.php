@@ -7,6 +7,7 @@ namespace yii2\extensions\mago\tests\Unit;
 use ArrayObject;
 use Closure;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use SplObjectStorage;
@@ -288,6 +289,88 @@ final class ServiceMapTest extends TestCase
         self::assertSame([], $map->getComponentDefinitionById('cycle'));
     }
 
+    public function testUnresolvedInstanceReferencesInBothContainerSections(): void
+    {
+        foreach (['definitions', 'singletons'] as $section) {
+            $map = $this->map([
+                'container' => [$section => [
+                    'unknown' => static fn() => null,
+                    'instance' => Instance::of('unknown'),
+                    'alias' => 'instance',
+                ]],
+            ]);
+            foreach (['unknown', 'instance', 'alias'] as $id) {
+                self::assertNull($map->getServiceById($id));
+                self::assertTrue($map->isUnresolvedService($id));
+            }
+        }
+    }
+
+    public static function classlessComponents(): iterable
+    {
+        yield 'array callable' => [[self::class, 'definitions'], false];
+        yield 'class array' => [['class' => View::class], false];
+        yield 'dunder class array' => [['__class' => View::class], false];
+        yield 'classless array' => [['title' => 'Home'], true];
+        yield 'untyped closure' => [static fn() => new View(), false];
+        yield 'null' => [null, false];
+    }
+
+    #[DataProvider('classlessComponents')]
+    public function testOnlyClasslessNonCallableArraysAreFlagged(mixed $definition, bool $classless): void
+    {
+        $map = $this->map(['components' => ['test' => $definition]]);
+        self::assertSame($classless, $map->isComponentWithoutClass('test'));
+        self::assertFalse($map->isComponentWithoutClass('absent'));
+    }
+
+    public function testWrappedTypedClosuresRemainTerminalWhenAliased(): void
+    {
+        $factory = static function (): CacheInterface {
+            throw new RuntimeException('Factory must not run');
+        };
+        foreach (['definitions', 'singletons'] as $section) {
+            $map = $this->map([
+                'components' => ['alias' => 'factoryAlias'],
+                'container' => [$section => [
+                    CacheInterface::class => FileCache::class,
+                    'factory' => [$factory, []],
+                    'factoryAlias' => 'factory',
+                ]],
+            ]);
+            self::assertSame(FileCache::class, $map->getServiceById(CacheInterface::class));
+            foreach (['factory', 'factoryAlias'] as $id) {
+                self::assertSame(CacheInterface::class, $map->getServiceById($id));
+                self::assertFalse($map->isUnresolvedService($id));
+            }
+            self::assertSame(CacheInterface::class, $map->getComponentClassById('alias'));
+        }
+    }
+
+    public function testComponentDefinitionsDropBothClassKeysButKeepOtherFields(): void
+    {
+        $map = $this->map(['components' => [
+            'dunder' => ['__class' => View::class, 'title' => 'Home'],
+            'both' => ['class' => stdClass::class, '__class' => View::class, 'title' => 'Home', 'flag' => false],
+        ]]);
+        self::assertSame(View::class, $map->getComponentClassById('dunder'));
+        self::assertSame(['title' => 'Home'], $map->getComponentDefinitionById('dunder'));
+        self::assertSame(View::class, $map->getComponentClassById('both'));
+        self::assertSame(['title' => 'Home', 'flag' => false], $map->getComponentDefinitionById('both'));
+    }
+
+    public function testUnresolvedArrayAliasDropsComponentDefinitionFields(): void
+    {
+        $map = $this->map([
+            'components' => ['alias' => ['class' => 'unknown', 'title' => 'Home']],
+            'container' => ['definitions' => ['unknown' => static fn() => null]],
+        ]);
+        self::assertNull($map->getComponentClassById('alias'));
+        self::assertTrue($map->isUnresolvedComponent('alias'));
+        self::assertFalse($map->isComponentWithoutClass('alias'));
+        self::assertSame([], $map->getComponentDefinitionById('alias'));
+    }
+
     public function testContainerOrderPriorityAndWrappedDefinitions(): void
     {
         foreach ([false, true] as $reverse) {
@@ -360,6 +443,10 @@ final class ServiceMapTest extends TestCase
             ['mago' => ['application_type' => false]],
             "'mago.application_type' must be a 'string'",
         ];
+        yield 'legacy application type' => [
+            ['phpstan' => ['application_type' => false]],
+            "'phpstan.application_type' must be a 'string'",
+        ];
         yield 'behavior id' => [['behaviors' => [0 => []]], "'Behavior class': 'ID' must be a 'string'"];
         yield 'behavior definition' => [
             ['behaviors' => ['bad' => false]],
@@ -376,6 +463,10 @@ final class ServiceMapTest extends TestCase
             ['container' => ['definitions' => ['bad' => 42]]],
             "Unsupported definition for 'bad'",
         ];
+        yield 'singleton definition' => [
+            ['container' => ['singletons' => ['bad' => 42]]],
+            "Unsupported definition for 'bad'",
+        ];
     }
 
     #[DataProvider('invalidConfigs')]
@@ -384,6 +475,30 @@ final class ServiceMapTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage($message);
         $this->map($config);
+    }
+
+    #[RequiresOperatingSystem('Linux|Darwin')]
+    public function testPhpSymlinkToNonPhpTargetIsRejected(): void
+    {
+        $directory = sys_get_temp_dir() . '/mago-config-' . bin2hex(random_bytes(8));
+        self::assertTrue(mkdir($directory));
+        $target = $directory . '/config.txt';
+        $link = $directory . '/config.php';
+        try {
+            self::assertNotFalse(file_put_contents($target, '<?php return [];'));
+            self::assertTrue(symlink($target, $link));
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage("Provided config path '$link' must be a readable PHP file.");
+            new ServiceMap($link);
+        } finally {
+            if (is_link($link)) {
+                unlink($link);
+            }
+            if (is_file($target)) {
+                unlink($target);
+            }
+            rmdir($directory);
+        }
     }
 
     public function testInvalidPath(): void

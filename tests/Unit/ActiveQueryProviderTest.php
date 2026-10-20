@@ -5,13 +5,21 @@ declare(strict_types=1);
 namespace yii2\extensions\mago\tests\Unit;
 
 use Mago\Sdk\Analyzer\InvocationKind;
+use Mago\Sdk\Analyzer\Metadata\ClassLikeMetadata;
+use Mago\Sdk\Analyzer\Metadata\TemplateMetadata;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\ClassLikeStringType;
 use Mago\Sdk\Analyzer\Type\ClassLikeStringVariant;
+use Mago\Sdk\Analyzer\Type\GenericParameterType;
+use Mago\Sdk\Analyzer\Type\GenericParent;
+use Mago\Sdk\Analyzer\Type\GenericParentKind;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\ScalarTypeKind;
+use Mago\Sdk\Analyzer\Type\Variance;
+use Mago\Sdk\Analyzer\TypeComparison;
+use Mago\Sdk\Internal\Analyzer\Protocol;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use yii2\extensions\mago\Analyzer\ActiveQueryProvider;
@@ -34,6 +42,8 @@ final class ActiveQueryProviderTest extends TestCase
             ['$id', '$number', '$label', '$comments', '$secret'],
         );
         $this->context->addClass('Comment', ['yii\db\ActiveRecord']);
+        $this->context->addMethod('Invoice', 'findOne', null);
+        $this->context->addMethod('Invoice', 'findAll', null);
         $this->context->addMagicProperty('Invoice', '$id', Type::int());
         $this->context->addMagicProperty('Invoice', '$number', Type::string());
         $this->context->addMagicProperty('Invoice', '$label', Type::string(), readOnly: true);
@@ -73,6 +83,18 @@ final class ActiveQueryProviderTest extends TestCase
         self::assertSame('yii\db\ActiveQuery<Invoice>', (string) $this->resolve($class, 'find', static: true));
     }
 
+    public function testStaticFindKeepsSubclassAndLateStaticRows(): void
+    {
+        $this->context->addClass('SpecialInvoice', ['Invoice', 'yii\db\ActiveRecord']);
+        $result = $this->resolve(Type::namedObject('SpecialInvoice'), 'find', static: true);
+        self::assertSame('yii\db\ActiveQuery<SpecialInvoice>', (string) $result);
+        foreach ([false, true] as $isThis) {
+            $receiver = Type::fromAtomic(new NamedObjectType('Invoice', null, null, true, $isThis, null, false));
+            $result = $this->resolve($receiver, 'find', static: true);
+            self::assertTrue($result->atomicTypes[0]->parameters[0]->atomicTypes[0]->static);
+        }
+    }
+
     public function testCustomFindKeepsQueryClassWithBoundIntersection(): void
     {
         $this->context->addClass('InvoiceQuery', ['yii\db\ActiveQuery']);
@@ -100,6 +122,146 @@ final class ActiveQueryProviderTest extends TestCase
         $query = Type::namedObject('yii\db\ActiveQuery', Type::namedObject('Invoice'));
         self::assertSame('array<array-key, Invoice>', (string) $this->resolve($query, 'all'));
         self::assertSame('Invoice|null', (string) $this->resolve($query, 'one'));
+    }
+
+    public function testSingleRowTemplateKeepsCustomQueryAndArrayShape(): void
+    {
+        $this->addGenericQuery('RowQuery', ['TRow' => Type::namedObject('Invoice')], true);
+        $query = Type::namedObject('RowQuery', Type::namedObject('Invoice'));
+        self::assertSame('Invoice|null', (string) $this->resolve($query, 'one'));
+        $arrays = $this->resolve($query, 'asArray');
+        self::assertSame('RowQuery', $arrays->atomicTypes[0]->name);
+        self::assertInstanceOf(KeyedArrayType::class, $arrays->atomicTypes[0]->parameters[0]->atomicTypes[0]);
+        self::assertSame($query, $this->resolve($query, 'asArray', [AnalyzerContext::argument(Type::false())]));
+        $arrayRow = Type::array(Type::string(), Type::int());
+        $result = $this->resolve(Type::namedObject('RowQuery', $arrayRow), 'asArray');
+        self::assertSame($arrayRow, $result->atomicTypes[0]->parameters[0]);
+    }
+
+    public function testFindBindsSupportedSingleRowTemplateWithoutLosingLateStatic(): void
+    {
+        $this->addGenericQuery('RowQuery', ['TRow' => Type::namedObject('Invoice')], true);
+        $lateInvoice = Type::fromAtomic(new NamedObjectType('Invoice', null, null, true, false, null, false));
+        $query = Type::namedObject('RowQuery', $lateInvoice);
+        $this->context->addMethod('Invoice', 'find', $query, true);
+        $plain = $this->resolve(Type::namedObject('Invoice'), 'find', static: true);
+        self::assertSame('RowQuery<Invoice>', (string) $plain);
+        self::assertFalse($plain->atomicTypes[0]->parameters[0]->atomicTypes[0]->static);
+        self::assertSame($query, $this->resolve($lateInvoice, 'find', static: true));
+    }
+
+    public function testSingleUnusedTemplateDoesNotBecomeRowEvenWhenConcreteTypeMatches(): void
+    {
+        $this->addGenericQuery('UnusedQuery', ['TUnused' => Type::namedObject('Invoice')], false);
+        $query = Type::namedObject('UnusedQuery', Type::namedObject('Invoice'));
+        foreach (['one', 'all', 'asArray'] as $method) {
+            self::assertNull($this->resolve($query, $method), $method);
+        }
+        $this->addGenericQuery('KeyOnlyQuery', ['TKey' => Type::string()], false);
+        $query = Type::namedObject('KeyOnlyQuery', Type::string());
+        self::assertNull($this->resolve($query, 'one'));
+        self::assertNull($this->resolve($query, 'asArray'));
+    }
+
+    public function testCustomQueryParametersAreNotAssumedToBeRows(): void
+    {
+        $this->addGenericQuery('KeyedQuery', ['TKey' => Type::string(), 'TModel' => Type::namedObject('Invoice')]);
+        $query = Type::namedObject('KeyedQuery', Type::string(), Type::namedObject('Invoice'));
+        foreach (['one', 'all', 'batch', 'each', 'asArray'] as $method) {
+            self::assertNull($this->resolve($query, $method), $method);
+            self::assertNull($this->resolve(Type::namedObject('KeyedQuery', Type::string()), $method), $method);
+        }
+        self::assertSame($query, $this->resolve($query, 'where'));
+        $this->context->addMethod('Invoice', 'find', $query, true);
+        self::assertNull($this->resolve(Type::namedObject('Invoice'), 'find', static: true));
+    }
+
+    public function testCustomQueryBindingDoesNotRewriteTemplatePositions(): void
+    {
+        $this->addGenericQuery('KeyedQuery', ['TKey' => Type::string(), 'TModel' => Type::namedObject('Invoice')]);
+        $lateInvoice = Type::fromAtomic(new NamedObjectType('Invoice', null, null, true, false, null, false));
+        $query = Type::fromAtomic(
+            new NamedObjectType(
+                'KeyedQuery',
+                [Type::string(), Type::namedObject('Invoice')],
+                null,
+                false,
+                false,
+                [Type::namedObject('yii\db\ActiveQuery', $lateInvoice)->atomicTypes[0]],
+                false,
+            ),
+        );
+        $this->context->addMethod('Invoice', 'find', $query, true);
+        self::assertSame($query, $this->resolve(Type::namedObject('Invoice'), 'find', static: true));
+    }
+
+    public function testBoundQueryKeepsPreciseOverrides(): void
+    {
+        $this->context->addClass('InvoiceQuery', ['yii\db\ActiveQuery']);
+        $query = Type::fromAtomic(
+            new NamedObjectType(
+                'InvoiceQuery',
+                null,
+                null,
+                false,
+                false,
+                [Type::namedObject('yii\db\ActiveQuery', Type::namedObject('Invoice'))->atomicTypes[0]],
+                false,
+            ),
+        );
+        $one = Type::namedObject('Invoice');
+        $all = Type::list($one);
+        $this->context->addMethod('InvoiceQuery', 'one', $one);
+        $this->context->addMethod('InvoiceQuery', 'all', $all);
+        self::assertSame($one, $this->resolve($query, 'one'));
+        self::assertSame($all, $this->resolve($query, 'all'));
+    }
+
+    public function testGenericOverridesDeferTemplateSubstitutionToHost(): void
+    {
+        $this->addGenericQuery('StrictQuery', ['T' => Type::namedObject('yii\db\ActiveRecord')], true);
+        $row = Type::fromAtomic(
+            new GenericParameterType(
+                'T',
+                Type::namedObject('yii\db\ActiveRecord'),
+                new GenericParent(GenericParentKind::ClassLike, 'strictquery'),
+                null,
+            ),
+        );
+        $this->context->addMethod('StrictQuery', 'one', $row);
+        $this->context->addMethod('StrictQuery', 'all', Type::list($row));
+        foreach (['yii\db\ActiveRecord', 'Invoice'] as $model) {
+            $query = Type::namedObject('StrictQuery', Type::namedObject($model));
+            self::assertNull($this->resolve($query, 'one'));
+            self::assertNull($this->resolve($query, 'all'));
+        }
+    }
+
+    public function testYiiTemplateContractsStillUseBoundRowSynthesis(): void
+    {
+        $row = Type::fromAtomic(
+            new GenericParameterType(
+                'T',
+                Type::namedObject('yii\db\ActiveRecord'),
+                new GenericParent(GenericParentKind::ClassLike, 'yii\db\activequery'),
+                null,
+            ),
+        );
+        $this->context->addMethod('yii\db\ActiveQuery', 'one', Type::union($row, Type::null()));
+        $this->context->addMethod('yii\db\ActiveQuery', 'all', Type::array(Type::int(), $row));
+        $query = Type::namedObject('yii\db\ActiveQuery', Type::namedObject('Invoice'));
+        self::assertSame('Invoice|null', (string) $this->resolve($query, 'one'));
+        self::assertSame('array<array-key, Invoice>', (string) $this->resolve($query, 'all'));
+    }
+
+    public function testStaticRecordLookupKeepsPreciseOverrides(): void
+    {
+        $one = Type::namedObject('Invoice');
+        $all = Type::list($one);
+        $this->context->addMethod('Invoice', 'findOne', $one, true);
+        $this->context->addMethod('Invoice', 'findAll', $all, true);
+        self::assertNull($this->resolve($one, 'findOne', static: true));
+        self::assertNull($this->resolve($one, 'findAll', static: true));
     }
 
     public function testAsArrayBuildsRequiredOptionalAndRelatedFields(): void
@@ -259,6 +421,31 @@ final class ActiveQueryProviderTest extends TestCase
         $query = Type::namedObject('yii\db\ActiveQuery', Type::namedObject('Invoice'));
         foreach (['column', 'scalar', 'count', 'exists', 'createCommand', 'populate'] as $method) {
             self::assertNull($this->resolve($query, $method));
+        }
+    }
+
+    /** @param array<string, Type> $constraints */
+    private function addGenericQuery(string $name, array $constraints, bool $rowTemplate = false): void
+    {
+        $this->context->addClass($name, ['yii\db\ActiveQuery']);
+        $parent = new GenericParent(GenericParentKind::ClassLike, strtolower($name));
+        $templates = [];
+        foreach ($constraints as $template => $constraint) {
+            $templates[] = new TemplateMetadata($template, $parent, $constraint, null, Variance::Invariant, false);
+        }
+        $class = $this->context->codebase->getClassLike($name);
+        $class = new ClassLikeMetadata(...[...get_object_vars($class), 'templates' => $templates]);
+        foreach ([0, 1] as $kind) {
+            $this->context->cache->values[(Protocol::GET_CLASS_LIKES << 4) | $kind][strtolower($name)] = $class;
+        }
+        if (count($templates) === 1) {
+            $template = $templates[0];
+            $symbol = Type::fromAtomic(new GenericParameterType($template->name, $template->constraint, $parent, null));
+            $comparison = TypeComparison::containedBy(
+                Type::namedObject($name, $symbol),
+                Type::namedObject('yii\db\ActiveQuery', $symbol),
+            );
+            $this->context->cache->typeComparisons[$comparison->cacheKey()] = $rowTemplate;
         }
     }
 

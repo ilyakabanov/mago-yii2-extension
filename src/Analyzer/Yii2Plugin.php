@@ -29,6 +29,9 @@ final class Yii2Plugin implements Plugin
 
     public function register(PluginRegistry $registry): void
     {
+        // Providers are deterministic within one frozen analysis generation.
+        $registry->enableProviderMemoization();
+
         $registry->registerPropertyTypeProvider(new ApplicationProvider($this->map, $this->genericComponents));
         $registry->registerPropertyTypeProvider(new BehaviorProvider($this->map));
         $registry->registerPropertyTypeProvider(new LogMessagesProvider());

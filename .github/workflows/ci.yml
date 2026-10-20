@@ -1,10 +1,15 @@
-name: Tests
+name: CI
 on: [push, pull_request]
+
+permissions:
+  contents: read
 
 jobs:
   package:
+    name: PHP ${{ matrix.php }} / Yii ${{ matrix.yii }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         php: ['8.3', '8.5']
         yii: ['2.0.55', '22.0.x-dev']
@@ -13,6 +18,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          tools: composer:v2
           extensions: mbstring, intl
           coverage: none
       - run: composer update --with=yiisoft/yii2:${{ matrix.yii }} --no-interaction --prefer-dist
@@ -23,4 +29,6 @@ jobs:
       - run: composer test:parity-harness
       - name: Original inference parity (migration remains incomplete)
         continue-on-error: true
-        run: composer test:parity
+        run: composer test:parity -- --json > "$RUNNER_TEMP/yii2-parity.json"
+      - name: Reject parity and native diagnostic regressions
+        run: php tests/check-parity-regressions.php "$RUNNER_TEMP/yii2-parity.json"
