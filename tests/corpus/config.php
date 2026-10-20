@@ -14,6 +14,7 @@ return [
         Article::class => [SlugBehavior::class],
         'Corpus\\BehaviorRegression\\ForwardingOwner' => ['Corpus\\BehaviorRegression\\InheritedBehavior'],
         'Corpus\\BehaviorRegression\\NativeOwner' => ['Corpus\\BehaviorRegression\\ConflictingBehavior'],
+        'Corpus\\BehaviorGenerics\\Owner' => ['Corpus\\BehaviorGenerics\\InheritedBehavior'],
     ],
     'params' => ['adminEmail' => 'admin@example.test', 'nested' => ['enabled' => true]],
 ];

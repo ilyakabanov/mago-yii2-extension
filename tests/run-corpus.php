@@ -4,8 +4,18 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 $binary = getenv('MAGO_BINARY') ?: $root . '/vendor/bin/mago';
+if (str_contains($binary, '/') && !str_starts_with($binary, '/')) {
+    $binary = __DIR__ . '/corpus/' . $binary;
+}
 $checks = [
     'worker registration' => [$binary, 'extension', 'validate'],
+    'params key analysis artifacts' => [
+        PHP_BINARY,
+        __DIR__ . '/regressions/params-keys/run.php',
+        '--with-key-helper',
+        '--mago-binary',
+        $binary,
+    ],
     'inference' => [$binary, 'analyze', '--reporting-format', 'short', '--minimum-report-level', 'warning'],
     'static application stub' => [$binary, '--config', 'static-stubs.toml', 'analyze', '--reporting-format', 'short', '--minimum-report-level', 'warning'],
 ];

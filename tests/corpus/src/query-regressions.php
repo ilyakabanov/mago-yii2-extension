@@ -267,8 +267,9 @@ function genericQueryRows(KeyedQuery $query): void
         // @mago-expect analysis:invalid-argument
         acceptsText($receipt);
     }
-    // Only a proven single row template is rewritten; multi-template asArray keeps native inference.
-    \Mago\confirm($query->asArray()->one(), 'null|yii\db\ActiveRecord');
+    // The row position is proven, but its record-only bound requires a base query for array rows.
+    \Mago\confirm($query->asArray(), "yii\db\ActiveQuery<array{'id': int}>");
+    \Mago\confirm($query->asArray()->one(), "array{'id': int}|null");
 }
 
 /** @param PreciseQuery&ActiveQuery<Receipt> $bound */

@@ -1,10 +1,10 @@
 # Compatibility report
 
-Verified locally on 2026-10-20 with PHP 8.5.11, Mago 1.58.2 and PHPUnit 12.5.40. The pre-CI-guard 148-test / 1594-assertion suite, worker registration, both corpora, harness self-test, source analysis and formatting were verified on both Yii 2.0.55 and Yii 22 development revision `32a14a1`. The final installed Yii version is 2.0.55. Only PHP 8.5 was run locally; the CI matrix additionally defines PHP 8.3 checks.
+Verified locally on 2026-10-20 with PHP 8.5.11, Mago 1.58.2 and PHPUnit 12.5.40. The final suite passes **238 tests / 1911 assertions** on both Yii 2.0.55 and Yii 22 development revision `32a14a1`; all four corpus checks, harness self-test, source analysis, formatting, strict Composer validation and both parity guards pass. The root checkout uses Yii 2.0.55 after matrix validation. PHP 8.3 runtime, Linux and GitHub Actions were not tested this round; the case-sensitive-filesystem CLI test branch awaits CI.
 
-The package is installed, its Composer metadata validates, and a separate consumer installs it through a Composer path repository. The consumer's worker successfully analyzes application code through the consumer's own autoloader with Yii 2.0.55 and Mago SDK 1.58.2. Nothing has been published to Packagist or pushed to a remote repository.
+The package is installed, its Composer metadata validates, and a separate consumer installs it through a Composer path repository. Both standard and opt-in params-key helper consumer analyses pass with Yii 2.0.55 and Mago SDK 1.58.2 through the consumer's actual Composer bin proxy and autoloader, exiting 0 with no unexpected warnings or errors. The repository has been pushed to a remote; the package has not been published to Packagist.
 
-## Verification
+## Historical pre-CI-guard verification
 
 | Check | Result |
 | --- | --- |
@@ -29,7 +29,7 @@ The package is installed, its Composer metadata validates, and a separate consum
 | DI definition forms | 23 | 23 |
 | Total | 634 | 643 |
 
-There are 638 exact-type and 5 supertype assertions. All 643 comparisons were verified on both Yii versions: 634/643 default and 636/643 with project patches, with identical full failure and native diagnostic signatures before and after provider memoization. Original fixtures, expected types and assertion counts are retained. The complete current report is [current-results.json](../tests/Parity/current-results.json). The parity command exits with failure until all remaining assertions match; no baseline suppresses those mismatches. CI additionally requires a no-regression comparison against that fixed report, accepting only removal of known mismatch/native diagnostic signatures. A green guard still reports the real 634/643 result; it is not a Mago inference baseline, does not alter type expectations and never automatically refreshes the snapshot. See [testing](testing.md) for commands and validation rules.
+There are 638 exact-type and 5 supertype assertions. All 643 comparisons were verified on both Yii versions: 634/643 default and 636/643 with project patches, with identical full failure and native diagnostic signatures across both Yii versions and the pre-change results. Original fixtures, expected types and assertion counts are retained. The complete current report is [current-results.json](../tests/Parity/current-results.json). The parity command exits with failure until all remaining assertions match; no baseline suppresses those mismatches. CI additionally requires a no-regression comparison against that fixed report, accepting only removal of known mismatch/native diagnostic signatures. A green guard still reports the real 634/643 result; it is not a Mago inference baseline, does not alter type expectations and never automatically refreshes the snapshot. See [testing](testing.md) for commands and validation rules.
 
 ## Historical Mago 1.58.2 upgrade checkpoint
 
@@ -55,11 +55,39 @@ None of the nine assertion differences below is resolved by this upgrade. SDK `C
 
 At this earlier fixes checkpoint, the expanded PHPUnit suite passed **145 tests / 1584 assertions** on both Yii 2.0.55 and Yii 22 revision `32a14a1`; worker registration, both corpora, source analysis, formatting and the harness self-test passed. All 643 original comparisons still run: **634/643** default and **636/643** with project patches, with the same mismatch locations and nine native params diagnostics as before these fixes.
 
-- Custom query row rewriting now requires a single template whose row binding is verified by Mago's symbolic subtype comparator, rather than assuming the first generic argument is the row. Unused/key-only parameters are not mistaken for row bindings; complex or multi-template `asArray()` inference falls back to native analysis. Precise bound `one()`/`all()` results and custom `findOne()`/`findAll()` return contracts are preserved, including supported `static`/`$this` contracts. Custom generic overrides, including inherited ones, are checked against the true declaring owner and template identity, then left to host substitution so non-null `one()` and `list<T>` `all()` contracts retain their precision.
-- Behavior methods use inherited declaring-method lookup. Native owner methods, including inherited ones, retain precedence and native signatures; behavior methods take precedence over owner PHPDoc pseudo methods, which are distinguished from native declarations. Direct behavior PHPDoc methods already worked. Forwarded generic behavior-method substitution remains unresolved; this fix does not claim general template instantiation.
+- At that checkpoint, custom query row rewriting required a single template whose row binding was verified by Mago's symbolic subtype comparator, rather than assuming the first generic argument is the row. Unused/key-only parameters are not mistaken for row bindings; complex or multi-template `asArray()` inference then fell back to native analysis. Precise bound `one()`/`all()` results and custom `findOne()`/`findAll()` return contracts are preserved, including supported `static`/`$this` contracts. Custom generic overrides, including inherited ones, are checked against the true declaring owner and template identity, then left to host substitution so non-null `one()` and `list<T>` `all()` contracts retain their precision.
+- Behavior methods use inherited declaring-method lookup. Native owner methods, including inherited ones, retain precedence and native signatures; behavior methods take precedence over owner PHPDoc pseudo methods, which are distinguished from native declarations. Direct behavior PHPDoc methods already worked. Forwarded generic behavior-method substitution was still unresolved at that checkpoint; the supported subset added later is described below.
 - Restored unit coverage includes the complete 300-key params shape and nine original portable shape datasets, DI aliases/definition forms, symlink and legacy application-type validation, malformed singleton definitions, and the runtime check that `getAttribute()` does not invoke virtual getters. Property precedence and directional PHPDoc contracts also have focused coverage. This is not a claim that all original unit tests or result-cache behavior have been migrated.
 
-The separate [red regression reproducers](../tests/regressions/README.md) isolate native application flow, unknown dynamic calls, the property metadata boundary and unresolved forwarded behavior-method generics. They also expose a native negative-index append bug in three of six original append cases: Mago uses key `0` instead of `-4` or `-1`. A minimal literal-array control reproduces it without Yii params inference. These diagnostics remain outside the green default suite and are not suppressed or counted as passing tests.
+The separate [regression reproducers](../tests/regressions/README.md) isolate native application flow, unknown dynamic calls and the property metadata boundary. They also expose a native negative-index append bug in three of six original append cases: Mago uses key `0` instead of `-4` or `-1`. A minimal literal-array control reproduces it without Yii params inference. These unresolved diagnostics remain outside the green default suite and are not suppressed or counted as passing tests. The unchanged behavior-generics reproducer now passes as a retained positive control.
+
+## Supported query, behavior-template and params-key additions
+
+Final local validation with **PHP 8.5.11 / Mago 1.58.2** on **both Yii 2.0.55 and Yii 22 revision `32a14a1`** passes **238 PHPUnit tests / 1911 assertions**, all four required corpus checks (registration, params-key artifacts, inference and sparse patches), source analysis, formatting, strict Composer validation, both parity guards and the harness self-test. All **643 original assertions remain unchanged**: **634/643 default**, **636/643 with project patches**, with full failure and native diagnostic signatures identical across both Yii versions and the pre-change results, including the same nine native params diagnostics. These additions are not a complete port and do not resolve the nine default mismatches below.
+
+### Custom queries
+
+Multi-template queries are supported when symbolic subtype checks prove exactly one row-template position. Rewriting changes only that position and preserves unrelated arguments. Explicit concrete row contracts on inherited factories remain concrete; proven late-static contracts can still follow the called subclass. Every resulting multi-template argument must satisfy its own closed bound through the native comparator. Dependent or unsupported bounds are not treated as instantiated constraints. Ambiguous/transformed bindings decline inference or use a safe base `ActiveQuery` with the exact row, potentially losing custom-query methods.
+
+Closed bounds include supported primitive, named-object, array and ordinary list structures with recursively closed contents. Template-dependent, callable, class-string, conditional, alias and other unsupported bounds fall back conservatively. The pre-existing single-template `PostQuery` PHPStan record-only-bound exception is unchanged; strict validation here describes the newly supported multi-template rewriting, not every legacy query path.
+
+### Forwarded behavior methods
+
+Inference binds **method-owned templates appearing as whole parameter types**, checked against their real declaring-method identity and declared bounds. Direct and forwarded identity calls agree, including native literal types, named arguments, multiple independent templates and repeated equal candidates. Supported return substitution includes simple unions and nested unshaped list/array/named-object containers. This is metadata-driven, not tied to fixture or method names; inherited lookup and native owner precedence remain intact.
+
+Nested/union-pattern parameters, differing repeated candidates, class/ancestor generics, template defaults/dependent bounds, conditional/callable/class-string structures, shaped containers and other unsupported patterns decline inference rather than inventing bindings. A union actual can bind as a whole to a naked template; this is not union-pattern solving. Parameter constraints and metadata are preserved. In particular, substituted `outType` metadata is forwarded, but **output-variable narrowing through a forwarded magic call is not fixed** by this work.
+
+### Params-key artifacts
+
+The old `StubGenerator::generate()` API and two-argument CLI remain supported; ordinary apostrophe/backslash keys now retain their actual bytes. Optional `StubGenerator::generateWithParamsKeys()` returns `array{patch: string, keys: string}`. An optional third CLI argument enables the companion helper:
+
+```sh
+vendor/bin/mago-yii2-stubs config/mago.php .mago/yii.php .mago/ParamsKeys.php
+```
+
+Register `.mago/yii.php` in `source.patches` and `.mago/ParamsKeys.php` alongside `vendor` in `source.includes`; the helper is ordinary analysis metadata, not a sparse patch. Never runtime-require or autoload either artifact. Generation does not start a Yii application or execute configured factories. Regenerate both together and restart analysis after configuration changes. Existing consumers must explicitly opt in; original parity artifacts are not automatically migrated.
+
+Required helper coverage passes **107 exact confirmations**: all 68 existing params-key assertions unchanged, 28 ordinary-key old-API checks and 11 additional edge cases. The default single-file regression remains intentionally red at **34/68**; helper mode is green. See [configuration and safety details](../tests/regressions/params-keys/README.md).
 
 ## Remaining differences
 
@@ -74,9 +102,9 @@ An optional project-specific property patch improves the result to **636/643**, 
 
 The params profile additionally reports nine native diagnostics for intentionally incompatible assignments and a redeclared property. The original PHPStan inference tests compare inferred types independently of such diagnostics. The runner reports them separately, and `--strict-native` makes them fail the run as well. The focused application corpus permits no unexpected warnings or errors.
 
-The original PHPStan result-cache dependency extension has no direct SDK equivalent here. Configuration is immutable for one worker lifetime. Restart a running analysis after changing configuration and regenerate the sparse patch after application/params changes. No PHPStan cache dependency API is emulated. Function/method provider memoization, including callable signatures, is limited to deterministic invocations within one frozen analysis generation; it neither caches property providers nor invalidates configuration result caches.
+The original PHPStan result-cache dependency extension has no direct SDK equivalent here. Configuration is immutable for one worker lifetime. Restart a running analysis after changing configuration and regenerate the sparse patch after application/params changes (both artifacts together when using the key helper). No PHPStan cache dependency API is emulated. Function/method provider memoization, including callable signatures, is limited to deterministic invocations within one frozen analysis generation; it neither caches property providers nor invalidates configuration result caches.
 
-The patch generator omits the Module params declaration if a key contains a control character or `*/`, which cannot be inserted safely into its PHPDoc representation. The semantic provider retains exact unusual keys. Implicit `$this->params` accesses that bypass Mago's provider dispatch require a representable patch or an application declaration.
+Single-file generation omits the entire Module params declaration if any nested key contains a control byte, `*/`, both quote delimiters or a trailing backslash. The semantic provider retains exact keys where dispatched; inherited implicit `$this->params` reads that bypass it need a representable patch or the opt-in companion helper. Helper mode preserves all actual keys, including NUL/control bytes, without inserting unsafe bytes into PHPDoc.
 
 ## Investigation evidence
 

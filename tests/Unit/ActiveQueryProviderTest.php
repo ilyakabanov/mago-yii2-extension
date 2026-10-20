@@ -8,6 +8,8 @@ use Mago\Sdk\Analyzer\InvocationKind;
 use Mago\Sdk\Analyzer\Metadata\ClassLikeMetadata;
 use Mago\Sdk\Analyzer\Metadata\TemplateMetadata;
 use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\Type\CallableSignature;
+use Mago\Sdk\Analyzer\Type\CallableType;
 use Mago\Sdk\Analyzer\Type\ClassLikeStringType;
 use Mago\Sdk\Analyzer\Type\ClassLikeStringVariant;
 use Mago\Sdk\Analyzer\Type\GenericParameterType;
@@ -126,7 +128,14 @@ final class ActiveQueryProviderTest extends TestCase
 
     public function testSingleRowTemplateKeepsCustomQueryAndArrayShape(): void
     {
-        $this->addGenericQuery('RowQuery', ['TRow' => Type::namedObject('Invoice')], true);
+        $constraint = Type::union(Type::namedObject('Invoice'), Type::array(Type::string(), Type::mixed()));
+        $this->addGenericQuery('RowQuery', ['TRow' => $constraint], true);
+        $shape = $this->resolve(
+            Type::namedObject('yii\db\ActiveQuery', Type::namedObject('Invoice')),
+            'asArray',
+        )->atomicTypes[0]->parameters[0];
+        $this->cacheContainment($shape, $constraint, true);
+        $this->cacheContainment(Type::array(Type::string(), Type::int()), $constraint, true);
         $query = Type::namedObject('RowQuery', Type::namedObject('Invoice'));
         self::assertSame('Invoice|null', (string) $this->resolve($query, 'one'));
         $arrays = $this->resolve($query, 'asArray');
@@ -145,9 +154,225 @@ final class ActiveQueryProviderTest extends TestCase
         $query = Type::namedObject('RowQuery', $lateInvoice);
         $this->context->addMethod('Invoice', 'find', $query, true);
         $plain = $this->resolve(Type::namedObject('Invoice'), 'find', static: true);
-        self::assertSame('RowQuery<Invoice>', (string) $plain);
+        self::assertSame('RowQuery', $plain->atomicTypes[0]->name);
+        self::assertSame('Invoice', $plain->atomicTypes[0]->parameters[0]->atomicTypes[0]->name);
         self::assertFalse($plain->atomicTypes[0]->parameters[0]->atomicTypes[0]->static);
         self::assertSame($query, $this->resolve($lateInvoice, 'find', static: true));
+    }
+
+    #[DataProvider('rowTemplatePositions')]
+    public function testMultipleTemplatesRewriteOnlyTheProvenRow(int $position): void
+    {
+        $constraint = Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed()));
+        $constraints = ['TFirst' => $constraint, 'TSecond' => $constraint, 'TThird' => $constraint];
+        $this->addGenericQuery('MultiQuery', $constraints, $position);
+        $model = Type::namedObject('Invoice');
+        $shape = $this->resolve(
+            Type::namedObject('yii\db\ActiveQuery', $model),
+            'asArray',
+        )->atomicTypes[0]->parameters[0];
+        $this->cacheContainment($shape, $constraint, true);
+        $this->cacheContainment($model, $constraint, true);
+        $parameters = [$model, $model, $model];
+        $variances = [Variance::Invariant, Variance::Invariant, Variance::Invariant];
+        $query = Type::fromAtomic(
+            new NamedObjectType(
+                'MultiQuery',
+                $parameters,
+                $variances,
+                true,
+                true,
+                [
+                    Type::namedObject('Marker')->atomicTypes[0],
+                    Type::namedObject('yii\db\ActiveQuery', $model)->atomicTypes[0],
+                ],
+                true,
+            ),
+        );
+        $result = $this->resolve($query, 'asArray')->atomicTypes[0];
+        $parameters[$position] = $shape;
+        self::assertSame('MultiQuery', $result->name);
+        self::assertSame(
+            array_map(static fn(Type $type) => $type->encode(), $parameters),
+            array_map(static fn(Type $type) => $type->encode(), $result->parameters),
+        );
+        foreach ($parameters as $index => $parameter) {
+            if ($index !== $position) {
+                self::assertSame($parameter, $result->parameters[$index]);
+            }
+        }
+        self::assertSame($variances, $result->variances);
+        self::assertTrue($result->static);
+        self::assertTrue($result->isThis);
+        self::assertTrue($result->remappedParameters);
+        self::assertSame($query->atomicTypes[0]->intersections[0], $result->intersections[0]);
+        self::assertSame($shape->encode(), $result->intersections[1]->parameters[0]->encode());
+        self::assertNull($this->resolve(Type::namedObject('MultiQuery', $model, $model), 'asArray'));
+    }
+
+    public static function rowTemplatePositions(): iterable
+    {
+        yield 'first' => [0];
+        yield 'second' => [1];
+        yield 'third' => [2];
+    }
+
+    public function testMultipleTemplateFindRebindsTheRowForCalledSubclasses(): void
+    {
+        $constraint = Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed()));
+        $this->addGenericQuery(
+            'MultiQuery',
+            ['TKey' => Type::string(), 'TRow' => $constraint, 'TTag' => Type::int()],
+            1,
+        );
+        $this->context->addClass('SpecialInvoice', ['Invoice', 'yii\db\ActiveRecord']);
+        $this->cacheContainment(Type::string(), Type::string(), true);
+        $this->cacheContainment(Type::int(), Type::int(), true);
+        $query = Type::namedObject(
+            'MultiQuery',
+            Type::string(),
+            Type::fromAtomic(new NamedObjectType('Invoice', [], null, true, false, null, false)),
+            Type::int(),
+        );
+        $this->context->addMethod('Invoice', 'find', $query, true);
+        $this->context->addMethod('SpecialInvoice', 'find', $query, true);
+        foreach (['Invoice', 'SpecialInvoice'] as $name) {
+            $model = Type::namedObject($name);
+            $this->cacheContainment(Type::fromAtomic($model->atomicTypes[0]), $constraint, true);
+            $result = $this->resolve($model, 'find', static: true)->atomicTypes[0];
+            self::assertSame('MultiQuery', $result->name);
+            self::assertSame($query->atomicTypes[0]->parameters[0], $result->parameters[0]);
+            self::assertSame($query->atomicTypes[0]->parameters[2], $result->parameters[2]);
+            self::assertSame($name, $result->parameters[1]->atomicTypes[0]->name);
+            self::assertFalse($result->parameters[1]->atomicTypes[0]->static);
+        }
+    }
+
+    public function testMultipleTemplateInheritedFindKeepsExplicitConcreteRow(): void
+    {
+        $constraint = Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed()));
+        $this->addGenericQuery('MultiQuery', ['TKey' => Type::string(), 'TRow' => $constraint], 1);
+        $this->context->addClass('SpecialInvoice', ['Invoice', 'yii\db\ActiveRecord']);
+        $query = Type::namedObject('MultiQuery', Type::string(), Type::namedObject('Invoice'));
+        $this->context->addMethod('SpecialInvoice', 'find', $query, true);
+        $this->cacheContainment(
+            Type::fromAtomic(Type::namedObject('SpecialInvoice')->atomicTypes[0]),
+            $constraint,
+            true,
+        );
+        self::assertSame($query, $this->resolve(Type::namedObject('SpecialInvoice'), 'find', static: true));
+    }
+
+    #[DataProvider('dependentQueryBounds')]
+    public function testDependentNonRowBoundFallsBackInsteadOfComparingUninstantiatedTemplate(Type $dependent): void
+    {
+        $constraint = Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed()));
+        $this->addGenericQuery('MultiQuery', ['TRow' => $constraint, 'TList' => $dependent], 0);
+        $model = Type::namedObject('Invoice');
+        $list = Type::list($model);
+        $query = Type::namedObject('MultiQuery', $model, $list);
+        $shape = $this->resolve(
+            Type::namedObject('yii\db\ActiveQuery', $model),
+            'asArray',
+        )->atomicTypes[0]->parameters[0];
+        $this->cacheContainment($shape, $constraint, true);
+        // Raw template containment is not evidence for list<the replacement array row>.
+        $this->cacheContainment($list, $dependent, true);
+        $result = $this->resolve($query, 'asArray')->atomicTypes[0];
+        self::assertSame('yii\db\ActiveQuery', $result->name);
+        self::assertSame($shape->encode(), $result->parameters[0]->encode());
+    }
+
+    public static function dependentQueryBounds(): iterable
+    {
+        $symbol = Type::fromAtomic(
+            new GenericParameterType(
+                'TRow',
+                Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed())),
+                new GenericParent(GenericParentKind::ClassLike, 'multiquery'),
+                null,
+            ),
+        );
+        yield 'direct template' => [$symbol];
+        yield 'nested list' => [Type::list($symbol)];
+        yield 'nested array' => [Type::array(Type::string(), Type::list($symbol))];
+        yield 'nested named object' => [Type::namedObject('Box', $symbol)];
+        yield 'unknown callable structure' => [Type::fromAtomic(
+            new CallableType(new CallableSignature(false, false, [], $symbol, null, []), null),
+        )];
+    }
+
+    #[DataProvider('closedQueryBounds')]
+    public function testClosedNonRowBoundsAreValidatedWithoutChangingTheirArguments(
+        Type $bound,
+        Type $argument,
+        bool $valid,
+    ): void {
+        $constraint = Type::union(Type::namedObject('yii\db\ActiveRecord'), Type::array(Type::string(), Type::mixed()));
+        $this->addGenericQuery('MultiQuery', ['TRow' => $constraint, 'TOther' => $bound], 0);
+        $model = Type::namedObject('Invoice');
+        $shape = $this->resolve(
+            Type::namedObject('yii\db\ActiveQuery', $model),
+            'asArray',
+        )->atomicTypes[0]->parameters[0];
+        $this->cacheContainment($shape, $constraint, true);
+        $this->cacheContainment($argument, $bound, $valid);
+        $result = $this->resolve(Type::namedObject('MultiQuery', $model, $argument), 'asArray')->atomicTypes[0];
+        self::assertSame($valid ? 'MultiQuery' : 'yii\db\ActiveQuery', $result->name);
+        self::assertSame($shape->encode(), $result->parameters[0]->encode());
+        if ($valid) {
+            self::assertSame($argument, $result->parameters[1]);
+        }
+    }
+
+    public static function closedQueryBounds(): iterable
+    {
+        $list = Type::list(Type::namedObject('Invoice'));
+        $array = Type::array(Type::string(), Type::list(Type::int()));
+        $object = Type::namedObject('Box', Type::string());
+        yield 'list' => [$list, $list, true];
+        yield 'array' => [$array, $array, true];
+        yield 'named object' => [$object, $object, true];
+        yield 'literal argument retained' => [Type::string(), Type::literalString('key'), true];
+        yield 'failed native containment' => [Type::string(), Type::int(), false];
+    }
+
+    public function testRecordOnlyRowConstraintFallsBackToBaseQueryForArrays(): void
+    {
+        $record = Type::namedObject('yii\db\ActiveRecord');
+        $this->addGenericQuery('MultiQuery', ['TKey' => Type::string(), 'TRow' => $record], 1);
+        $model = Type::namedObject('Invoice');
+        $query = Type::namedObject('MultiQuery', Type::string(), $model);
+        $shape = $this->resolve(
+            Type::namedObject('yii\db\ActiveQuery', $model),
+            'asArray',
+        )->atomicTypes[0]->parameters[0];
+        $this->cacheContainment(Type::string(), Type::string(), true);
+        $this->cacheContainment($shape, $record, false);
+        $result = $this->resolve($query, 'asArray')->atomicTypes[0];
+        self::assertSame('yii\db\ActiveQuery', $result->name);
+        self::assertCount(1, $result->parameters);
+        self::assertSame($shape->encode(), $result->parameters[0]->encode());
+        self::assertSame($query, $this->resolve($query, 'asArray', [AnalyzerContext::argument(Type::false())]));
+    }
+
+    public function testAmbiguousSymbolicProjectionKeepsNativeInference(): void
+    {
+        $record = Type::namedObject('yii\db\ActiveRecord');
+        $this->addGenericQuery('AmbiguousQuery', ['TFirst' => $record, 'TSecond' => $record], 0);
+        $parent = new GenericParent(GenericParentKind::ClassLike, 'ambiguousquery');
+        $symbols = array_map(static fn(string $name) => Type::fromAtomic(
+            new GenericParameterType($name, $record, $parent, null),
+        ), ['TFirst', 'TSecond']);
+        $this->cacheContainment(
+            Type::namedObject('AmbiguousQuery', ...$symbols),
+            Type::namedObject('yii\db\ActiveQuery', $symbols[1]),
+            true,
+        );
+        $query = Type::namedObject('AmbiguousQuery', Type::namedObject('Invoice'), Type::namedObject('Invoice'));
+        foreach (['one', 'all', 'asArray'] as $method) {
+            self::assertNull($this->resolve($query, $method));
+        }
     }
 
     public function testSingleUnusedTemplateDoesNotBecomeRowEvenWhenConcreteTypeMatches(): void
@@ -425,7 +650,7 @@ final class ActiveQueryProviderTest extends TestCase
     }
 
     /** @param array<string, Type> $constraints */
-    private function addGenericQuery(string $name, array $constraints, bool $rowTemplate = false): void
+    private function addGenericQuery(string $name, array $constraints, bool|int $rowTemplate = false): void
     {
         $this->context->addClass($name, ['yii\db\ActiveQuery']);
         $parent = new GenericParent(GenericParentKind::ClassLike, strtolower($name));
@@ -438,15 +663,22 @@ final class ActiveQueryProviderTest extends TestCase
         foreach ([0, 1] as $kind) {
             $this->context->cache->values[(Protocol::GET_CLASS_LIKES << 4) | $kind][strtolower($name)] = $class;
         }
-        if (count($templates) === 1) {
-            $template = $templates[0];
-            $symbol = Type::fromAtomic(new GenericParameterType($template->name, $template->constraint, $parent, null));
-            $comparison = TypeComparison::containedBy(
-                Type::namedObject($name, $symbol),
+        $symbols = array_map(static fn(TemplateMetadata $template) => Type::fromAtomic(
+            new GenericParameterType($template->name, $template->constraint, $parent, null),
+        ), $templates);
+        foreach ($symbols as $position => $symbol) {
+            $this->cacheContainment(
+                Type::namedObject($name, ...$symbols),
                 Type::namedObject('yii\db\ActiveQuery', $symbol),
+                $rowTemplate === true ? $position === 0 : $rowTemplate === $position,
             );
-            $this->context->cache->typeComparisons[$comparison->cacheKey()] = $rowTemplate;
         }
+    }
+
+    private function cacheContainment(Type $input, Type $container, bool $contained): void
+    {
+        $comparison = TypeComparison::containedBy($input, $container);
+        $this->context->cache->typeComparisons[$comparison->cacheKey()] = $contained;
     }
 
     private function resolve(Type $receiver, string $method, array $arguments = [], bool $static = false): ?Type

@@ -27,6 +27,7 @@ use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\ScalarTypeKind;
 use Mago\Sdk\Analyzer\Type\SimpleAtomicType;
 use Mago\Sdk\Analyzer\Type\SimpleAtomicTypeKind;
+use Mago\Sdk\Analyzer\TypeComparison;
 
 /** Preserves Yii query classes while binding their rows to the queried model. */
 final class ActiveQueryProvider implements MethodReturnTypeProvider
@@ -283,12 +284,16 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         }
         if ($bound !== null && !$this->isUnboundRecord($bound)) {
             $boundObject = $this->singleNamedObject($bound);
+            // A symbolic row projection does not make an explicit concrete factory contract late-static.
+            if (count($query->parameters ?? []) > 1 && $boundObject !== null && !$boundObject->static) {
+                return $declared;
+            }
             if (
                 $boundObject !== null
                 && $boundObject->static
                 && !$model->static
-                && strcasecmp($model->name, $boundObject->name) === 0
-                && $this->hasSingleRowTemplate($query, $context)
+                && $this->isClass($model->name, $boundObject->name, $context->codebase)
+                && $this->rowTemplatePosition($query, $context) !== null
             ) {
                 return $this->queryWithRow($query, $modelType, $context);
             }
@@ -299,6 +304,9 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             ) {
                 return $declared;
             }
+        }
+        if ($bound !== null && $this->rowTemplatePosition($query, $context) !== null) {
+            return $this->queryWithRow($query, $modelType, $context);
         }
         return Type::fromAtomic(
             new NamedObjectType(
@@ -329,7 +337,8 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
             return $query->parameters[0] ?? null;
         }
         if (($query->parameters ?? []) !== []) {
-            return $this->hasSingleRowTemplate($query, $context) ? $query->parameters[0] ?? null : null;
+            $position = $this->rowTemplatePosition($query, $context);
+            return $position === null ? null : $query->parameters[$position] ?? null;
         }
         $class = $codebase->getClassLike($query->name);
         if ($class === null || $class->templates !== [] || !$this->isClass($query->name, self::QUERY, $codebase)) {
@@ -560,36 +569,110 @@ final class ActiveQueryProvider implements MethodReturnTypeProvider
         );
     }
 
-    private function hasSingleRowTemplate(NamedObjectType $query, ReturnTypeProviderContext $context): bool
+    private function rowTemplatePosition(NamedObjectType $query, ReturnTypeProviderContext $context): ?int
     {
-        // shortcut: multi-template queries keep native inference until their row positions can be validated.
         $class = $context->codebase->getClassLike($query->name);
-        if (count($query->parameters ?? []) !== 1 || $class === null || count($class->templates) !== 1) {
-            return false;
-        }
-        $template = $class->templates[0];
         if (
-            $template->definingEntity->kind !== GenericParentKind::ClassLike
-            || strcasecmp($template->definingEntity->name, $query->name) !== 0
+            $class === null
+            || $class->templates === []
+            || count($query->parameters ?? []) !== count($class->templates)
         ) {
-            return false;
+            return null;
         }
-        $symbol = Type::fromAtomic(
-            new GenericParameterType($template->name, $template->constraint, $template->definingEntity, null),
+        $symbols = [];
+        foreach ($class->templates as $template) {
+            if (
+                $template->definingEntity->kind !== GenericParentKind::ClassLike
+                || strcasecmp($template->definingEntity->name, $query->name) !== 0
+            ) {
+                return null;
+            }
+            $symbols[] = Type::fromAtomic(
+                new GenericParameterType($template->name, $template->constraint, $template->definingEntity, null),
+            );
+        }
+        // Concrete arguments can coincide; only a unique symbolic identity projection proves the row position.
+        $symbolicQuery = Type::namedObject($query->name, ...$symbols);
+        $comparisons = array_map(
+            static fn(Type $symbol) => TypeComparison::containedBy($symbolicQuery, Type::namedObject(
+                self::QUERY,
+                $symbol,
+            )),
+            $symbols,
         );
-        // Concrete rows can coincide with an unused template's bound; compare the symbolic binding instead.
-        return $context->types->isContainedBy(
-            Type::namedObject($query->name, $symbol),
-            Type::namedObject(self::QUERY, $symbol),
-        );
+        $positions = array_keys(array_filter($context->types->compareMultiple($comparisons)));
+        return count($positions) === 1 ? $positions[0] : null;
     }
 
     private function queryWithRow(NamedObjectType $query, Type $row, ReturnTypeProviderContext $context): Type
     {
-        if (strcasecmp($query->name, self::QUERY) === 0 || $this->hasSingleRowTemplate($query, $context)) {
-            return Type::namedObject($query->name, $row);
+        $base = strcasecmp($query->name, self::QUERY) === 0;
+        $position = $base ? 0 : $this->rowTemplatePosition($query, $context);
+        if ($position === null) {
+            return Type::namedObject(self::QUERY, $row);
         }
-        return Type::namedObject(self::QUERY, $row);
+        $parameters = $query->parameters ?? [];
+        $parameters[$position] = $row;
+        // Keep the original single-template PHPStan contract; validate every bound for new multi-template support.
+        if (!$base && count($parameters) > 1) {
+            foreach ($context->codebase->getClassLike($query->name)?->templates ?? [] as $index => $template) {
+                // Raw template bounds are not instantiated by containment; dependent/unknown bounds stay conservative.
+                if (
+                    !$this->isClosedQueryBound($template->constraint)
+                    || !$context->types->isContainedBy($parameters[$index], $template->constraint)
+                ) {
+                    return Type::namedObject(self::QUERY, $row);
+                }
+            }
+        }
+        $intersections = $query->intersections === null
+            ? null
+            : array_map(fn(AtomicType $intersection) => $intersection instanceof NamedObjectType
+                && strcasecmp($intersection->name, self::QUERY) === 0
+                    ? $this->queryWithRow($intersection, $row, $context)->atomicTypes[0]
+                    : $intersection, $query->intersections);
+        return Type::fromAtomic(
+            new NamedObjectType(
+                $query->name,
+                $parameters,
+                $query->variances,
+                $query->static,
+                $query->isThis,
+                $intersections,
+                $query->remappedParameters,
+            ),
+        );
+    }
+
+    private function isClosedQueryBound(Type $type): bool
+    {
+        foreach ($type->atomicTypes as $atomic) {
+            $children = match (true) {
+                $atomic instanceof MixedType, $atomic instanceof SimpleAtomicType => [],
+                $atomic instanceof ScalarType && !$atomic->refinement instanceof ClassLikeStringType => [],
+                $atomic instanceof NamedObjectType && !$atomic->static && !$atomic->isThis => [
+                    ...($atomic->parameters ?? []),
+                    ...array_map(Type::fromAtomic(...), $atomic->intersections ?? []),
+                ],
+                $atomic instanceof KeyedArrayType => [
+                    ...array_map(static fn(ArrayItem $item) => $item->type, $atomic->knownItems ?? []),
+                    ...($atomic->keyType === null ? [] : [$atomic->keyType]),
+                    ...($atomic->valueType === null ? [] : [$atomic->valueType]),
+                ],
+                $atomic instanceof ListType && $atomic->knownElements === null => [$atomic->elementType],
+                default => null,
+            };
+            // shortcut: only known closed structures are supported; extend this whitelist when another bound is needed.
+            if ($children === null) {
+                return false;
+            }
+            foreach ($children as $child) {
+                if (!$this->isClosedQueryBound($child)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private function singleNamedObject(Type $type): ?NamedObjectType

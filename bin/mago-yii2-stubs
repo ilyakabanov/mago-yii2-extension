@@ -6,8 +6,8 @@ declare(strict_types=1);
 use yii2\extensions\mago\ServiceMap;
 use yii2\extensions\mago\StubGenerator;
 
-if (count($argv) !== 3) {
-    fwrite(STDERR, "Usage: php bin/mago-yii2-stubs config.php output.php\n");
+if (count($argv) !== 3 && count($argv) !== 4) {
+    fwrite(STDERR, "Usage: php bin/mago-yii2-stubs config.php output.php [params-keys.php]\n");
     exit(1);
 }
 
@@ -36,14 +36,95 @@ if ($autoload === null) {
 }
 require $autoload;
 
+$handles = [];
+$created = [];
+$writing = false;
+$error = null;
 try {
-    $stub = StubGenerator::generate(new ServiceMap($argv[1]));
-    if (file_put_contents($argv[2], $stub) === false) {
-        throw new RuntimeException('Cannot write analysis stub to ' . $argv[2]);
+    $services = new ServiceMap($argv[1]);
+    $bundle = count($argv) === 4
+        ? StubGenerator::generateWithParamsKeys($services)
+        : ['patch' => StubGenerator::generate($services)];
+    $outputs = [[$argv[2], $bundle['patch']]];
+    if (isset($bundle['keys'])) {
+        $outputs[] = [$argv[3], $bundle['keys']];
+    }
+    $destinations = [];
+    foreach ($outputs as [$path, $source]) {
+        token_get_all($source, TOKEN_PARSE);
+        $resolved = realpath($path);
+        $parent = realpath(dirname($path));
+        if ($parent === false || is_link($path) && $resolved === false) {
+            throw new RuntimeException('Cannot resolve output destination: ' . $path);
+        }
+        $destination = $resolved !== false ? $resolved : $parent . DIRECTORY_SEPARATOR . basename($path);
+        $stat = is_file($destination) ? stat($destination) : false;
+        $identity = $stat !== false ? $stat['dev'] . ':' . $stat['ino'] : $destination;
+        if (in_array($identity, $destinations, true)) {
+            throw new RuntimeException('Patch and params-key helper destinations must be different.');
+        }
+        if (is_dir($destination) || !is_writable($resolved !== false ? $destination : $parent)) {
+            throw new RuntimeException('Cannot write analysis output to ' . $path);
+        }
+        $destinations[] = $identity;
+    }
+    $identities = [];
+    foreach ($outputs as [$path]) {
+        // Exclusive creation records ownership; existing files are opened without truncation.
+        $handle = @fopen($path, 'x+b');
+        $isNew = $handle !== false;
+        if ($handle === false) {
+            $handle = @fopen($path, 'r+b');
+        }
+        if ($handle === false) {
+            throw new RuntimeException('Cannot write analysis output to ' . $path);
+        }
+        $handles[] = $handle;
+        $stat = fstat($handle);
+        if ($stat === false) {
+            throw new RuntimeException('Cannot identify output destination: ' . $path);
+        }
+        if ($isNew) {
+            $created[] = [$path, $stat];
+        }
+        $identity = $stat['dev'] . ':' . $stat['ino'];
+        if (in_array($identity, $identities, true)) {
+            throw new RuntimeException('Patch and params-key helper destinations must be different.');
+        }
+        $identities[] = $identity;
+    }
+    $writing = true;
+    foreach ($outputs as $index => [$path, $source]) {
+        if (!ftruncate($handles[$index], 0) || fwrite($handles[$index], $source) !== strlen($source)) {
+            throw new RuntimeException('Cannot write analysis output to ' . $path);
+        }
     }
 } catch (Throwable $error) {
+    if (!$writing) {
+        foreach ($created as [$path, $identity]) {
+            clearstatcache(true, $path);
+            $stat = @lstat($path);
+            if ($stat !== false && $stat['dev'] === $identity['dev'] && $stat['ino'] === $identity['ino']) {
+                unlink($path);
+            }
+        }
+    }
+}
+foreach ($handles as $handle) {
+    fclose($handle);
+}
+if ($error !== null) {
     fwrite(STDERR, $error->getMessage() . "\n");
     exit(1);
 }
 
 fwrite(STDOUT, 'Generated analysis stub: ' . $argv[2] . "\n");
+if (count($argv) === 4) {
+    fwrite(
+        STDOUT,
+        'Generated params-key helper: '
+        . $argv[3]
+        . "\n"
+        . "Register the stub in source.patches and the helper in source.includes; never require either at runtime.\n",
+    );
+}

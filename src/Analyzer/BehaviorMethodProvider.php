@@ -39,7 +39,16 @@ final class BehaviorMethodProvider implements MethodReturnTypeProvider, Callable
         $class = PropertyResolver::receiverClass($context->invocation->receiverType);
         $method = $class !== null ? $this->findMethod($context->codebase, $class, $context->invocation->name) : null;
 
-        return $method !== null ? $method->returnType?->type ?? Type::mixed() : null;
+        if ($method === null) {
+            return null;
+        }
+        if ($method->templates === []) {
+            return $method->returnType?->type ?? Type::mixed();
+        }
+
+        $templates = BehaviorMethodTemplates::infer($method, $context->invocation, $context->types);
+
+        return $templates?->substitute($method->returnType?->type ?? Type::mixed());
     }
 
     public function getCallableSignature(CallableSignatureProviderContext $context): ?EffectiveCallableSignature
@@ -54,16 +63,27 @@ final class BehaviorMethodProvider implements MethodReturnTypeProvider, Callable
             return null;
         }
 
+        $templates = BehaviorMethodTemplates::infer(
+            $method,
+            $context->invocation,
+            $context->types,
+        ) ?? BehaviorMethodTemplates::bounds($method);
         $parameters = [];
         foreach ($method->parameters as $parameter) {
             $parameters[] = new CallableParameter(
                 name: '$' . ltrim($parameter->name, '$'),
-                type: $parameter->type?->type,
-                closureThisType: $parameter->closureThisType?->type,
+                type: $parameter->type !== null
+                    ? $templates?->substitute($parameter->type->type) ?? $parameter->type->type
+                    : null,
+                closureThisType: $parameter->closureThisType !== null
+                    ? $templates?->substitute($parameter->closureThisType->type) ?? $parameter->closureThisType->type
+                    : null,
                 byReference: $parameter->flags->contains(MetadataFlags::BY_REFERENCE),
                 variadic: $parameter->flags->contains(MetadataFlags::VARIADIC),
                 hasDefault: $parameter->flags->contains(MetadataFlags::HAS_DEFAULT),
-                outType: $parameter->outType?->type,
+                outType: $parameter->outType !== null
+                    ? $templates?->substitute($parameter->outType->type) ?? $parameter->outType->type
+                    : null,
             );
         }
 
